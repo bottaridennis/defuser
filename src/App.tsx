@@ -83,44 +83,19 @@ export default function App() {
 
         <main className="flex-1 flex overflow-hidden flex-col md:flex-row relative">
           
-          <aside className={`w-full md:w-72 border-r border-[#27272a] bg-[#0a0a0c] flex flex-col p-4 shrink-0 overflow-y-auto ${!activeModule ? '' : 'hidden md:flex'}`}>
-            <h2 className="text-[10px] uppercase tracking-tighter text-zinc-500 mb-4 px-2">Select Identified Module</h2>
-            <div className="flex flex-col gap-2">
-              {Object.entries(MODULE_NAMES).map(([id, name]) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveModule(id as ModuleId)}
-                  className={`w-full flex items-center justify-between p-3 rounded transition-all border ${
-                    activeModule === id
-                    ? 'bg-zinc-900 border-zinc-700 text-zinc-100 shadow-lg'
-                    : 'hover:bg-zinc-900 border-transparent hover:border-zinc-800 text-zinc-400'
-                  }`}
-                >
-                  <span className="font-semibold">{name}</span>
-                </button>
-              ))}
-            </div>
-            <div className="mt-auto pt-4 hidden md:block">
-              <div className="p-4 bg-zinc-900/50 rounded border border-dashed border-zinc-800">
-                <p className="text-[10px] uppercase text-zinc-500 mb-1">Quick Reference</p>
-                <p className="text-xs text-zinc-400 leading-relaxed">Identify the serial number and indicators before proceeding to complex wire analysis.</p>
-              </div>
-            </div>
-          </aside>
-
-          <section className={`flex-1 flex flex-col p-6 lg:p-10 bg-[radial-gradient(circle_at_center,_#111111_0%,_#050505_100%)] overflow-y-auto ${!activeModule ? 'hidden md:flex' : ''}`}>
+          <section className="flex-1 flex flex-col p-6 lg:p-10 bg-[radial-gradient(circle_at_center,_#111111_0%,_#050505_100%)] overflow-y-auto">
             {activeModule ? (
               <div className="animate-in fade-in flex-1 flex flex-col max-w-4xl mx-auto w-full">
                 <div className="flex items-center gap-2 mb-6">
-                  <span className="h-[1px] w-8 bg-amber-500"></span>
-                  <span className="text-xs uppercase font-bold tracking-widest text-amber-500">{MODULE_NAMES[activeModule]}</span>
-                  <button 
-                    onClick={() => setActiveModule(null)}
-                    className="ml-auto md:hidden text-xs text-zinc-400 border border-zinc-700 px-3 py-1 rounded"
-                  >
-                    Torna ai Moduli
-                  </button>
-                </div>
+                   <span className="h-[1px] w-8 bg-amber-500"></span>
+                   <span className="text-xs uppercase font-bold tracking-widest text-amber-500">{MODULE_NAMES[activeModule]}</span>
+                   <button 
+                     onClick={() => setActiveModule(null)}
+                     className="ml-auto text-xs text-zinc-400 border border-zinc-700 hover:bg-zinc-800 hover:text-white transition-colors px-3 py-1 rounded font-mono uppercase"
+                   >
+                     Torna ai Moduli
+                   </button>
+                 </div>
                 
                 <div className="flex-1">
                   {renderModule()}
