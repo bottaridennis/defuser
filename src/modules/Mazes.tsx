@@ -116,8 +116,8 @@ export const Mazes: React.FC = () => {
         {/* Cerchi Selection */}
         <div className="flex-1 flex flex-col gap-4">
             <h3 className="font-mono text-xs uppercase tracking-widest text-zinc-500 text-center">Fase 1: Trova Labirinto</h3>
-            <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-6 shadow-xl flex items-center justify-center">
-                <div className="grid grid-cols-6 gap-2 bg-zinc-950 p-4 border-2 border-zinc-800 rounded">
+            <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 sm:p-6 shadow-xl flex items-center justify-center">
+                <div className="grid grid-cols-6 gap-1 sm:gap-2 bg-zinc-950 p-2 sm:p-4 border-2 border-zinc-800 rounded mx-auto">
                     {[...Array(6)].map((_, r) => 
                         [...Array(6)].map((_, c) => {
                             const isSelected = selectedCircles.some(arr => arr[0] === c && arr[1] === r);
@@ -127,14 +127,14 @@ export const Mazes: React.FC = () => {
                                 <button
                                     key={`sel-${r}-${c}`}
                                     onClick={() => toggleCircle(r, c)}
-                                    className={`w-10 h-10 rounded-full border-2 flex flex-col items-center justify-center transition-all 
+                                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-zinc-700 sm:border-2 flex flex-col items-center justify-center transition-all focus:outline-none focus:ring-1 focus:ring-zinc-500
                                         ${isSelected ? 'border-green-500 bg-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.5)]' 
                                         : isCircleTarget ? 'border-green-900 bg-green-900/10' 
-                                        : 'border-zinc-700 hover:border-zinc-500'}
+                                        : 'hover:border-zinc-500'}
                                     `}
                                     disabled={identifiedMaze !== undefined && !isSelected}
                                 >
-                                    <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-green-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${isSelected ? 'bg-green-500' : 'bg-zinc-600'}`}></div>
                                 </button>
                             );
                         })
@@ -155,19 +155,19 @@ export const Mazes: React.FC = () => {
                Fase 2: Calcola Percorso
            </h3>
            {identifiedMaze ? (
-               <div className="bg-zinc-900 border border-green-500/50 rounded-xl p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] flex flex-col items-center">
+               <div className="bg-zinc-900 border border-green-500/50 rounded-xl p-4 sm:p-6 shadow-[0_0_20px_rgba(34,197,94,0.1)] flex flex-col items-center">
                    <div className="mb-4 text-center">
-                       <span className="text-green-500 font-mono text-xl uppercase tracking-widest font-black">
+                       <span className="text-green-500 font-mono text-lg sm:text-xl uppercase tracking-widest font-black">
                            Labirinto #{identifiedMaze.id}
                        </span>
-                       <p className="text-xs text-zinc-400 mt-1">
+                       <p className="text-[10px] sm:text-xs text-zinc-400 mt-1 max-w-xs mx-auto">
                            Clicca prima il PUNTINO BIANCO (Inizio), poi il TRIANGOLO ROSSO (Fine).
                        </p>
                    </div>
                    
                    {/* Interactive Grid Representation */}
-                   <div className="relative border-4 border-zinc-800 bg-zinc-950 p-2 rounded shadow-inner inline-block">
-                        <div className="grid grid-cols-6 gap-0">
+                   <div className="w-full max-w-[240px] sm:max-w-[300px] aspect-square relative border-2 sm:border-4 border-zinc-800 bg-zinc-950 p-1 sm:p-2 rounded shadow-inner mx-auto mb-4">
+                        <div className="grid grid-cols-6 gap-0 w-full h-full">
                             {[...Array(6)].map((_, r) => 
                                 [...Array(6)].map((_, c) => {
                                     const walls = identifiedMaze.walls[r * 6 + c];
@@ -186,7 +186,7 @@ export const Mazes: React.FC = () => {
                                         <div 
                                             key={`maze-${r}-${c}`}
                                             onClick={() => handleCellClick(r, c)}
-                                            className="w-12 h-12 relative flex items-center justify-center cursor-pointer hover:bg-zinc-800/50 transition-colors group"
+                                            className="w-full h-full relative flex items-center justify-center cursor-pointer hover:bg-zinc-800/50 transition-colors group"
                                             style={{
                                                 borderTop: hasTop ? '2px solid rgb(113 113 122)' : '1px dashed rgb(39 39 42)',
                                                 borderRight: hasRight ? '2px solid rgb(113 113 122)' : '1px dashed rgb(39 39 42)',
@@ -199,15 +199,15 @@ export const Mazes: React.FC = () => {
                                             
                                             {/* Path rendering layer */}
                                             {inPath && !isStart && !isEnd && (
-                                                <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
+                                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
                                             )}
 
                                             {isStart && (
-                                                <div className="w-4 h-4 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] z-10"></div>
+                                                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] z-10"></div>
                                             )}
                                             
                                             {isEnd && (
-                                                <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-b-[14px] border-l-transparent border-r-transparent border-b-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)] z-10"></div>
+                                                <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] sm:border-l-[8px] sm:border-r-[8px] sm:border-b-[14px] border-l-transparent border-r-transparent border-b-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)] z-10"></div>
                                             )}
                                         </div>
                                     );
@@ -217,7 +217,7 @@ export const Mazes: React.FC = () => {
                    </div>
 
                    {/* Path Output */}
-                   <div className="mt-6 border-t border-zinc-800 pt-4 w-full text-center">
+                   <div className="border-t border-zinc-800 pt-4 w-full text-center">
                        {path ? (
                            <div className="space-y-2">
                                <p className="text-xs text-zinc-500 uppercase font-mono tracking-widest">Mosse ({path.length - 1})</p>

@@ -73,30 +73,30 @@ export const CompWires: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto">
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-8">
         <button
           onClick={() => setHasRed(!hasRed)}
-          className={`p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all ${hasRed ? 'bg-red-500 border-red-400 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
+          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all ${hasRed ? 'bg-red-500 border-red-400 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
         >
           ROSSO
         </button>
         <button
           onClick={() => setHasBlue(!hasBlue)}
-          className={`p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all ${hasBlue ? 'bg-blue-500 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
+          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all ${hasBlue ? 'bg-blue-500 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
         >
           BLU
         </button>
         <button
           onClick={() => setHasStar(!hasStar)}
-          className={`p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all flex justify-center items-center gap-2 ${hasStar ? 'bg-gray-700 border-white text-white' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
+          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 text-[10px] sm:text-base ${hasStar ? 'bg-gray-700 border-white text-white' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
         >
-          ★ STELLA
+          <span className="text-xl">★</span> <span>STELLA</span>
         </button>
         <button
           onClick={() => setHasLed(!hasLed)}
-          className={`p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all flex justify-center items-center gap-2 ${hasLed ? 'bg-amber-400 border-yellow-200 text-gray-900 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
+          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 text-[10px] sm:text-base ${hasLed ? 'bg-amber-400 border-yellow-200 text-gray-900 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
         >
-          ⚲ LED
+          <span className="text-xl">⚲</span> <span>LED</span>
         </button>
       </div>
 

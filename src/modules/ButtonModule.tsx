@@ -78,16 +78,16 @@ export const ButtonModule: React.FC = () => {
             <p className="text-amber-300/80 text-sm">Inserisci il numero di batterie nelle impostazioni bomba.</p>
           </div>
         ) : action === 'PRESS' ? (
-          <div className="bg-green-900/20 border border-green-500/30 p-6 rounded-lg text-center">
-            <p className="text-green-500 uppercase tracking-widest text-sm font-bold mb-2">Azione Richiesta</p>
-            <p className="text-3xl lg:text-4xl font-black text-white">Premi e rilascia subito</p>
+          <div className="bg-green-900/20 border border-green-500/30 p-4 sm:p-6 rounded-lg text-center">
+            <p className="text-green-500 uppercase tracking-widest text-[10px] sm:text-sm font-bold mb-2">Azione Richiesta</p>
+            <p className="text-xl sm:text-3xl lg:text-4xl font-black text-white">Premi e rilascia subito</p>
           </div>
         ) : (
           <div className="bg-blue-900/20 border border-blue-500/30 p-6 rounded-lg">
             <div className="text-center mb-6">
-              <p className="text-blue-500 uppercase tracking-widest text-sm font-bold mb-2">Azione Richiesta</p>
-              <p className="text-3xl lg:text-4xl font-black text-white">TIENI PREMUTO</p>
-              <p className="text-gray-400 mt-2">mentre tieni premuto, guarda la striscia illuminata a lato:</p>
+              <p className="text-blue-500 uppercase tracking-widest text-[10px] sm:text-sm font-bold mb-2">Azione Richiesta</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white">TIENI PREMUTO</p>
+              <p className="text-gray-400 mt-2 text-xs sm:text-sm">mentre tieni premuto, guarda la striscia illuminata a lato:</p>
             </div>
             
             <div className="grid gap-3 font-mono text-sm">

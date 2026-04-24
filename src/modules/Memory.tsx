@@ -102,8 +102,8 @@ export const Memory: React.FC = () => {
             
             <div className="mb-8">
               <p className="text-center text-gray-400 text-sm uppercase tracking-widest mb-2">Azione Richiesta</p>
-              <div className="text-center font-black text-3xl">
-                Premi {currentAction?.type === 'POSITION' ? 'la Posizione' : 'l\'Etichetta'} <span className="text-amber-500 text-5xl ml-2">{currentAction?.value}</span>
+              <div className="text-center font-black text-xl sm:text-3xl">
+                Premi {currentAction?.type === 'POSITION' ? 'la Posizione' : 'l\'Etichetta'} <span className="text-amber-500 text-3xl sm:text-5xl ml-2">{currentAction?.value}</span>
               </div>
             </div>
 

@@ -111,14 +111,14 @@ export const WhosOnFirst: React.FC = () => {
             <span className="bg-amber-500 text-zinc-950 w-6 h-6 inline-flex items-center justify-center font-bold">1</span>
             Seleziona la parola che appare nel DISPLAY in alto
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2">
             {sortedStep1Keys.map(word => (
               <button
                 key={word}
                 onClick={() => setStep1Word(word)}
-                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-mono text-sm py-4 px-2 rounded border border-zinc-800 hover:border-zinc-500 transition-colors uppercase tracking-widest leading-tight min-h-[60px] flex items-center justify-center text-center active:scale-95"
+                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-mono text-[10px] sm:text-xs py-2 px-1 sm:py-3 sm:px-2 rounded border border-zinc-800 hover:border-zinc-500 transition-colors uppercase tracking-widest leading-tight min-h-[48px] sm:min-h-[60px] flex items-center justify-center text-center active:scale-95 break-words"
               >
-                {word === "[VUOTO]" ? <span className="opacity-50 italic whitespace-nowrap">{"[Nessun Testo]"}</span> : word}
+                {word === "[VUOTO]" ? <span className="opacity-50 italic whitespace-nowrap">{"[Nessun Testo]"}</span> : <span className="break-words px-1">{word}</span>}
               </button>
             ))}
           </div>
@@ -129,20 +129,20 @@ export const WhosOnFirst: React.FC = () => {
             <span className="bg-amber-500 text-zinc-950 w-6 h-6 inline-flex items-center justify-center font-bold">2</span>
             Leggi la parola del pulsante...
           </h3>
-          <div className="text-center p-8 bg-zinc-950 rounded border border-zinc-800 mb-6 shadow-inner">
-            <p className="text-zinc-500 text-xs font-mono mb-2 uppercase tracking-widest">Guarda il pulsante situato in:</p>
-            <p className="text-4xl lg:text-5xl font-black text-amber-500 uppercase tracking-tighter">{STEP1_MAP[step1Word]}</p>
+          <div className="text-center p-4 sm:p-8 bg-zinc-950 rounded border border-zinc-800 mb-6 shadow-inner">
+            <p className="text-zinc-500 text-[10px] sm:text-xs font-mono mb-2 uppercase tracking-widest">Guarda il pulsante situato in:</p>
+            <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-amber-500 uppercase tracking-tighter break-words px-2">{STEP1_MAP[step1Word]}</p>
           </div>
           
-          <p className="text-zinc-400 text-sm mb-4">Quale parola c'è scritta su <strong className="text-white">QUEL</strong> pulsante?</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-[40vh] overflow-y-auto pr-2">
+          <p className="text-zinc-400 text-xs sm:text-sm mb-4">Quale parola c'è scritta su <strong className="text-white">QUEL</strong> pulsante?</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2 max-h-[40vh] overflow-y-auto pr-1">
             {sortedStep2Keys.map(word => (
               <button
                 key={word}
                 onClick={() => setStep2Word(word)}
-                className="bg-zinc-900 border border-zinc-800 hover:bg-amber-950/30 hover:border-amber-900/50 text-zinc-300 hover:text-amber-500 font-mono text-sm py-4 px-2 min-h-[60px] rounded transition-colors active:scale-95 text-center flex items-center justify-center leading-tight uppercase"
+                className="bg-zinc-900 border border-zinc-800 hover:bg-amber-950/30 hover:border-amber-900/50 text-zinc-300 hover:text-amber-500 font-mono text-[10px] sm:text-xs py-2 px-1 sm:py-3 sm:px-2 min-h-[48px] sm:min-h-[60px] rounded transition-colors active:scale-95 text-center flex items-center justify-center leading-tight uppercase break-words"
               >
-                {word}
+                <span className="break-words px-1">{word}</span>
               </button>
             ))}
           </div>

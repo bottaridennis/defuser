@@ -66,8 +66,8 @@ export const Password: React.FC = () => {
           </div>
         ) : filtered.length === 1 ? (
           <div className="text-center py-6 animate-in zoom-in fade-in">
-            <span className="text-sm font-bold uppercase tracking-widest text-green-500 mb-2 block">LA PASSWORD È:</span>
-            <span className="text-5xl font-black text-white uppercase tracking-[0.5em]">{filtered[0]}</span>
+            <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-green-500 mb-2 block">LA PASSWORD È:</span>
+            <span className="text-3xl sm:text-5xl font-black text-white uppercase tracking-widest sm:tracking-[0.5em]">{filtered[0]}</span>
           </div>
         ) : (
           <div className="flex flex-wrap gap-3">
