@@ -1,142 +1,122 @@
 import React, { useState } from 'react';
+import { Delete } from 'lucide-react';
+import { BigText, GhostButton, Hint, Panel, Result, ResetButton, cx } from '../components/ui';
 
-type WireColor = 'red' | 'blue' | 'black';
-type WireConn = 'A' | 'B' | 'C';
+type WColor = 'red' | 'blue' | 'black';
+type Conn = 'A' | 'B' | 'C';
 
-const RED_SEQ = ['C', 'B', 'A', 'AC', 'B', 'AC', 'ABC', 'AB', 'B'];
-const BLUE_SEQ = ['B', 'AC', 'B', 'A', 'B', 'BC', 'C', 'AC', 'A'];
-const BLACK_SEQ = ['ABC', 'AC', 'B', 'AC', 'B', 'BC', 'AB', 'C', 'C'];
-
-export const WireSequences: React.FC = () => {
-  const [redCount, setRedCount] = useState(0);
-  const [blueCount, setBlueCount] = useState(0);
-  const [blackCount, setBlackCount] = useState(0);
-
-  const [currentColor, setCurrentColor] = useState<WireColor>('red');
-  const [currentConn, setCurrentConn] = useState<WireConn>('A');
-
-  const getCutNeeded = (color: WireColor, conn: WireConn) => {
-    let count = 0;
-    let seq: string[] = [];
-    if (color === 'red') { count = redCount; seq = RED_SEQ; }
-    if (color === 'blue') { count = blueCount; seq = BLUE_SEQ; }
-    if (color === 'black') { count = blackCount; seq = BLACK_SEQ; }
-
-    if (count >= 9) return { cut: false, text: "Oltre il limite!" };
-
-    const target = seq[count];
-    const shouldCut = target.includes(conn);
-    return { cut: shouldCut };
-  };
-
-  const currentCut = getCutNeeded(currentColor, currentConn);
-
-  const acceptWire = () => {
-    if (currentColor === 'red') setRedCount(r => Math.min(r + 1, 9));
-    if (currentColor === 'blue') setBlueCount(b => Math.min(b + 1, 9));
-    if (currentColor === 'black') setBlackCount(bl => Math.min(bl + 1, 9));
-  };
-
-  const undo = () => {
-    // We don't have full history, just naive undo if they messed up the last one
-    // A proper implementation would keep an array of history.
-    // Let's implement full history!
-  };
-
-  // We should just use history array.
-  return <WireSequencesWithHistory />;
+// Tabella del manuale: n-esima ricorrenza di ogni colore -> lettere per cui tagliare
+const SEQ: Record<WColor, string[]> = {
+  red: ['C', 'B', 'A', 'AC', 'B', 'AC', 'ABC', 'AB', 'B'],
+  blue: ['B', 'AC', 'B', 'A', 'B', 'BC', 'C', 'AC', 'A'],
+  black: ['ABC', 'AC', 'B', 'AC', 'B', 'BC', 'AB', 'C', 'C'],
 };
 
-const WireSequencesWithHistory: React.FC = () => {
-  const [history, setHistory] = useState<{color: WireColor, conn: WireConn, cut: boolean}[]>([]);
-  
-  const [color, setColor] = useState<WireColor>('red');
-  const [conn, setConn] = useState<WireConn>('A');
+const META: Record<WColor, { label: string; cls: string; text: string }> = {
+  red: { label: 'Rosso', cls: 'bg-red-500 border-red-400', text: 'text-red-400' },
+  blue: { label: 'Blu', cls: 'bg-blue-500 border-blue-400', text: 'text-blue-400' },
+  black: { label: 'Nero', cls: 'bg-zinc-950 border-zinc-500', text: 'text-ink-300' },
+};
 
-  const redCount = history.filter(h => h.color === 'red').length;
-  const blueCount = history.filter(h => h.color === 'blue').length;
-  const blackCount = history.filter(h => h.color === 'black').length;
+interface Entry { color: WColor; conn: Conn; n: number; cut: boolean }
 
-  const decide = (c: WireColor, l: WireConn) => {
-    let count = 0;
-    let seq: string[] = [];
-    if (c === 'red') { count = redCount; seq = RED_SEQ; }
-    if (c === 'blue') { count = blueCount; seq = BLUE_SEQ; }
-    if (c === 'black') { count = blackCount; seq = BLACK_SEQ; }
+export const WireSequences: React.FC = () => {
+  const [history, setHistory] = useState<Entry[]>([]);
+  const [color, setColor] = useState<WColor | null>(null);
 
-    if (count >= 9) return false;
-    return seq[count].includes(l);
+  const count = (c: WColor) => history.filter((h) => h.color === c).length;
+
+  const add = (conn: Conn) => {
+    if (!color) return;
+    const n = count(color);
+    const cut = n < 9 && SEQ[color][n].includes(conn);
+    setHistory((h) => [...h, { color, conn, n: n + 1, cut }]);
+    setColor(null);
   };
 
-  const shouldCut = decide(color, conn);
-
-  const addWire = () => {
-    setHistory([...history, { color, conn, cut: shouldCut }]);
-  };
-
-  const undo = () => setHistory(history.slice(0, -1));
-  const reset = () => setHistory([]);
+  const last = history[history.length - 1];
 
   return (
-    <div className="max-w-xl mx-auto space-y-8">
-      <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-400 mb-2">Colore Cavo</label>
-          <div className="flex gap-2">
-            <button onClick={() => setColor('red')} className={`flex-1 py-3 border-2 rounded font-bold ${color === 'red' ? 'bg-red-500 border-red-400 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>ROSSO</button>
-            <button onClick={() => setColor('blue')} className={`flex-1 py-3 border-2 rounded font-bold ${color === 'blue' ? 'bg-blue-500 border-blue-400 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>BLU</button>
-            <button onClick={() => setColor('black')} className={`flex-1 py-3 border-2 rounded font-bold ${color === 'black' ? 'bg-gray-900 border-gray-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>NERO</button>
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-400 mb-2">Connesso a</label>
-          <div className="flex gap-2">
-            <button onClick={() => setConn('A')} className={`flex-1 py-3 border-2 rounded font-bold ${conn === 'A' ? 'bg-amber-500 border-amber-400 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>A</button>
-            <button onClick={() => setConn('B')} className={`flex-1 py-3 border-2 rounded font-bold ${conn === 'B' ? 'bg-amber-500 border-amber-400 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>B</button>
-            <button onClick={() => setConn('C')} className={`flex-1 py-3 border-2 rounded font-bold ${conn === 'C' ? 'bg-amber-500 border-amber-400 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>C</button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <Hint>Per ogni cavo del pannello: tocca il colore, poi la lettera a cui è collegato. I conteggi valgono per tutti i pannelli.</Hint>
 
-      <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 text-center relative overflow-hidden">
-        <p className="text-gray-400 font-mono text-sm uppercase mb-2">Azione Immediata (Cavo Corrente)</p>
-        <div className={`text-4xl lg:text-5xl font-black ${shouldCut ? 'text-green-500' : 'text-red-500'}`}>
-          {shouldCut ? 'TAGLIA' : 'SALTA'}
-        </div>
-        
-        <button 
-          onClick={addWire}
-          className="mt-6 bg-gray-700 hover:bg-gray-600 text-white border border-gray-600 px-6 py-2 rounded-full font-bold transition-all transform active:scale-95"
-        >
-          Vai al prossimo cavo →
-        </button>
-      </div>
-
-      <div className="border-t border-gray-800 pt-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-mono text-gray-400">Storico ({history.length} cavi elaborati)</h3>
-          <div className="space-x-2">
-            <button onClick={undo} disabled={history.length===0} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1 rounded disabled:opacity-50 border border-gray-700">Annulla Ultimo</button>
-            <button onClick={reset} disabled={history.length===0} className="text-xs bg-gray-800 hover:bg-red-900 text-gray-300 px-3 py-1 rounded disabled:opacity-50 border border-gray-700">Reset Totale</button>
-          </div>
-        </div>
-        <div className="flex gap-2 font-mono text-xs text-gray-500 mb-2">
-          <span>Rosso: {redCount}/9</span>
-          <span>Blu: {blueCount}/9</span>
-          <span>Nero: {blackCount}/9</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {history.map((h, i) => (
-            <div key={i} className={`px-2 py-1 rounded text-xs font-bold font-mono border ${
-              h.color === 'red' ? 'border-red-500 text-red-500' :
-              h.color === 'blue' ? 'border-blue-500 text-blue-500' :
-              'border-gray-500 text-gray-300'
-            }`}>
-              {i+1}: {h.color.toUpperCase().charAt(0)} → {h.conn} ({h.cut ? 'V' : 'X'})
-            </div>
+      <Panel title="Colore del cavo" step={1}>
+        <div className="grid grid-cols-3 gap-2">
+          {(Object.keys(META) as WColor[]).map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-pressed={color === c}
+              onClick={() => setColor(c)}
+              className={cx(
+                'flex h-16 flex-col items-center justify-center rounded-xl border-2 text-sm font-bold text-white transition-[opacity,transform] active:scale-[0.97]',
+                META[c].cls,
+                color === c ? 'ring-2 ring-signal ring-offset-2 ring-offset-ink-900' : color ? 'opacity-35' : '',
+              )}
+            >
+              {META[c].label}
+              <span className="font-mono text-[10px] font-normal opacity-80">{count(c)}/9</span>
+            </button>
           ))}
         </div>
-      </div>
+      </Panel>
+
+      <Panel title="Collegato alla lettera" step={2}>
+        <div className="grid grid-cols-3 gap-2">
+          {(['A', 'B', 'C'] as Conn[]).map((l) => (
+            <button
+              key={l}
+              type="button"
+              disabled={!color}
+              onClick={() => add(l)}
+              className="h-16 rounded-xl border border-ink-700 bg-ink-850 font-mono text-3xl font-bold text-ink-100 transition-[border-color,transform] enabled:hover:border-signal active:scale-95 disabled:opacity-30"
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      </Panel>
+
+      {last ? (
+        <Result tone={last.cut ? 'go' : 'stop'} label={`${last.n}° cavo ${META[last.color].label.toLowerCase()} → ${last.conn}`}>
+          <BigText>{last.cut ? 'Taglia' : 'Non tagliare'}</BigText>
+          {last.n > 9 && <p className="mt-1 text-xs text-ink-300">Oltre la 9ª ricorrenza: controlla di non aver contato due volte.</p>}
+        </Result>
+      ) : (
+        <Result tone="idle">
+          <p className="text-sm text-ink-400">Inserisci il primo cavo.</p>
+        </Result>
+      )}
+
+      {history.length > 0 && (
+        <Panel
+          title={`Storico (${history.length})`}
+          right={
+            <>
+              <GhostButton onClick={() => setHistory((h) => h.slice(0, -1))} aria-label="Annulla ultimo">
+                <Delete size={14} />
+              </GhostButton>
+              <ResetButton onClick={() => { setHistory([]); setColor(null); }} />
+            </>
+          }
+        >
+          <ol className="flex flex-wrap gap-1.5">
+            {history.map((h, i) => (
+              <li
+                key={i}
+                className={cx(
+                  'flex items-center gap-1.5 rounded-lg border px-2 py-1 font-mono text-xs font-bold',
+                  h.cut ? 'border-go/40 bg-go/10' : 'border-ink-700 bg-ink-850',
+                )}
+              >
+                <span className={cx('h-2.5 w-2.5 rounded-full border', META[h.color].cls)} />
+                <span className={META[h.color].text}>{h.n}°</span>→{h.conn}
+                <span className={h.cut ? 'text-go' : 'text-stop'}>{h.cut ? '✂' : '✕'}</span>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+      )}
     </div>
   );
 };

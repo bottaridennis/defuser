@@ -1,93 +1,86 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { BigText, Hint, Panel, Result, ResetButton, cx } from '../components/ui';
 
-const CONFIGS = [
-  { pos: 'SU / UP', grid: [[false, true, false, true, true, false], [true, true, true, true, false, true]] },
-  { pos: 'SU / UP', grid: [[false, false, false, true, false, true], [false, true, true, false, true, true]] },
-  { pos: 'GIÙ / DOWN', grid: [[false, true, true, false, true, false], [true, true, true, true, false, true]] },
-  { pos: 'GIÙ / DOWN', grid: [[true, false, true, false, true, false], [false, true, false, false, false, true]] },
-  { pos: 'SINISTRA / LEFT', grid: [[false, false, true, false, false, false], [true, false, false, true, true, true]] },
-  { pos: 'SINISTRA / LEFT', grid: [[false, false, false, false, false, true], [false, false, false, false, true, true]] },
-  { pos: 'DESTRA / RIGHT', grid: [[true, false, true, true, true, true], [true, true, true, false, true, false]] },
-  { pos: 'DESTRA / RIGHT', grid: [[true, false, true, true, false, false], [true, true, true, false, true, false]] }
+const b = (s: string) => s.split('').map((x) => x === '1');
+
+// Disposizione dei LED dal manuale: [riga superiore, riga inferiore], da sinistra a destra.
+const CONFIGS: { pos: string; arrow: string; top: boolean[]; bottom: boolean[] }[] = [
+  { pos: 'SU', arrow: '↑', top: b('001011'), bottom: b('111101') },
+  { pos: 'SU', arrow: '↑', top: b('101010'), bottom: b('011011') },
+  { pos: 'GIÙ', arrow: '↓', top: b('011001'), bottom: b('111101') },
+  { pos: 'GIÙ', arrow: '↓', top: b('101010'), bottom: b('010001') },
+  { pos: 'SINISTRA', arrow: '←', top: b('000010'), bottom: b('100111') },
+  { pos: 'SINISTRA', arrow: '←', top: b('000010'), bottom: b('000110') },
+  { pos: 'DESTRA', arrow: '→', top: b('101111'), bottom: b('111010') },
+  { pos: 'DESTRA', arrow: '→', top: b('101100'), bottom: b('111010') },
 ];
 
+const EMPTY = () => [Array(6).fill(false), Array(6).fill(false)] as boolean[][];
+
 export const Knobs: React.FC = () => {
-  const [leds, setLeds] = useState<boolean[][]>([
-    [false, false, false, false, false, false],
-    [false, false, false, false, false, false]
-  ]);
+  const [leds, setLeds] = useState<boolean[][]>(EMPTY);
+  const touched = leds.flat().some(Boolean);
 
-  const toggleLed = (r: number, c: number) => {
-    setLeds(prev => {
-      const next = [...prev];
-      next[r] = [...next[r]];
-      next[r][c] = !next[r][c];
-      return next;
-    });
-  };
+  const toggle = (r: number, c: number) =>
+    setLeds((p) => p.map((row, ri) => (ri === r ? row.map((v, ci) => (ci === c ? !v : v)) : row)));
 
-  const getMatch = () => {
-    return CONFIGS.find(cfg => {
-      return cfg.grid.every((row, r) => row.every((val, c) => val === leds[r][c]));
-    });
-  };
-
-  const match = getMatch();
+  const ranked = useMemo(
+    () =>
+      CONFIGS.map((cfg) => ({
+        cfg,
+        diff: [cfg.top, cfg.bottom].reduce((acc, row, r) => acc + row.filter((v, c) => v !== leds[r][c]).length, 0),
+      })).sort((a, b) => a.diff - b.diff),
+    [leds],
+  );
+  const best = ranked[0];
+  const bestPositions = new Set(ranked.filter((x) => x.diff === best.diff).map((x) => x.cfg.pos));
+  const unique = bestPositions.size === 1;
 
   return (
-    <div className="max-w-xl mx-auto space-y-8 animate-in fade-in">
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-        <div>
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-3">Manopole</h2>
-          <p className="text-sm text-zinc-500 mt-1">Accendi i LED in modo che corrispondano a quelli visibili sulla bomba.</p>
+    <div className="space-y-4">
+      <Panel title="Quali LED sono accesi?" right={<ResetButton onClick={() => setLeds(EMPTY())} disabled={!touched} />}>
+        <Hint className="mb-4 text-xs">Due file da 6 LED, sopra e sotto la manopola. Basta la fila superiore per quasi tutti i casi.</Hint>
+        <div className="mx-auto max-w-sm space-y-3 rounded-2xl border border-ink-700 bg-ink-950 p-4">
+          {leds.map((row, r) => (
+            <div key={r} className="grid grid-cols-[repeat(3,1fr)_12px_repeat(3,1fr)] gap-2">
+              {row.map((on, c) => (
+                <React.Fragment key={c}>
+                  {c === 3 && <span />}
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={`LED fila ${r === 0 ? 'superiore' : 'inferiore'} ${c + 1}`}
+                    onClick={() => toggle(r, c)}
+                    className={cx(
+                      'aspect-square rounded-full border-2 transition-[background,box-shadow,border-color] active:scale-90',
+                      on ? 'border-amber-200 bg-signal shadow-[0_0_14px_var(--color-signal)]' : 'border-ink-600 bg-ink-850',
+                    )}
+                  />
+                </React.Fragment>
+              ))}
+            </div>
+          ))}
         </div>
-        <button 
-          onClick={() => setLeds([[false,false,false,false,false,false],[false,false,false,false,false,false]])}
-          className="text-xs font-mono uppercase bg-zinc-900 border border-zinc-800 hover:border-red-500/50 hover:bg-red-950/30 text-zinc-400 p-2 rounded transition-colors"
-        >
-          Resetta
-        </button>
-      </div>
+      </Panel>
 
-      <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-8 shadow-xl">
-        <div className="flex flex-col gap-4 mb-8 items-center bg-zinc-950 p-6 rounded-lg border border-zinc-800">
-          <div className="flex gap-4">
-            {leds[0].map((isOn, c) => (
-              <React.Fragment key={`top-${c}`}>
-                <button
-                  onClick={() => toggleLed(0, c)}
-                  className={`w-10 h-10 rounded-full border-2 transition-all shadow-inner ${isOn ? 'bg-amber-400 border-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.8)]' : 'bg-zinc-900 border-zinc-700 hover:border-zinc-500'}`}
-                />
-                {c === 2 && <div className="w-4" />}
-              </React.Fragment>
-            ))}
-          </div>
-          <div className="flex gap-4">
-            {leds[1].map((isOn, c) => (
-              <React.Fragment key={`bottom-${c}`}>
-                <button
-                  onClick={() => toggleLed(1, c)}
-                  className={`w-10 h-10 rounded-full border-2 transition-all shadow-inner ${isOn ? 'bg-amber-400 border-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.8)]' : 'bg-zinc-900 border-zinc-700 hover:border-zinc-500'}`}
-                />
-                {c === 2 && <div className="w-4" />}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-
-        {match ? (
-          <div className="text-center p-6 bg-green-950/20 border border-green-900/50 rounded-xl animate-in slide-in-from-bottom-4 shadow-[0_0_30px_rgba(34,197,94,0.1)]">
-            <p className="text-green-500 font-mono text-sm uppercase mb-2 tracking-widest">Posizione Corretta</p>
-            <h3 className="text-5xl font-black text-white">{match.pos}</h3>
-            <p className="text-zinc-500 text-xs mt-4 uppercase">Le posizioni sono relative alla scritta "SU", che potrebbe essere ruotata.</p>
-          </div>
-        ) : (
-          <div className="text-center p-6 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-             <p className="text-zinc-500 font-mono uppercase tracking-widest text-sm">Nessuna Corrispondenza</p>
-             <p className="text-zinc-600 text-xs mt-2">Configura i LED esattamente come appaiono.</p>
-          </div>
-        )}
-      </div>
+      {!touched ? (
+        <Result tone="idle">
+          <p className="text-sm text-ink-400">Accendi i LED come appaiono sulla bomba.</p>
+        </Result>
+      ) : best.diff === 0 || (unique && best.diff <= 2) ? (
+        <Result tone={best.diff === 0 ? 'go' : 'warn'} label={best.diff === 0 ? 'Gira la manopola verso' : `Probabile (differenza di ${best.diff} LED)`}>
+          <BigText className="text-5xl sm:text-6xl">
+            <span className="text-signal">{best.cfg.arrow}</span> {best.cfg.pos}
+          </BigText>
+          <p className="mt-2 text-xs text-ink-400">Rispetto all'etichetta “UP”, che potrebbe essere ruotata.</p>
+        </Result>
+      ) : (
+        <Result tone="idle" label="Nessuna corrispondenza esatta">
+          <p className="text-sm text-ink-400">
+            {unique ? 'Configurazione troppo diversa: ricontrolla i LED.' : `Possibili: ${[...bestPositions].join(', ')}. Controlla anche la fila inferiore.`}
+          </p>
+        </Result>
+      )}
     </div>
   );
 };

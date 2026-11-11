@@ -1,138 +1,180 @@
-import React, { useState } from 'react';
-import { useBombContext } from '../context/BombContext';
-import { Settings, X, Plus, Minus } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { X, Trash2 } from 'lucide-react';
+import { useBombContext, INDICATORS, PORTS } from '../context/BombContext';
+import { Stepper, StrikePicker, cx } from './ui';
 
-const COMMON_INDICATORS = ['CAR', 'FRK', 'SND', 'CLR', 'IND', 'FRQ', 'SIG', 'NSA', 'MSA', 'TRN', 'BOB'];
-const COMMON_PORTS = ['DVI-D', 'Parallel', 'PS/2', 'RJ-45', 'Seriale', 'Stereo RCA'];
+const Label: React.FC<{ children: React.ReactNode; hint?: React.ReactNode }> = ({ children, hint }) => (
+  <div className="mb-2 flex items-baseline justify-between gap-2">
+    <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{children}</span>
+    {hint && <span className="font-mono text-[11px] text-ink-500">{hint}</span>}
+  </div>
+);
 
-export const BombConfig: React.FC = () => {
-  const { serial, setSerial, batteries, setBatteries, strikes, setStrikes, indicators, toggleIndicator, ports, togglePort } = useBombContext();
-  const [isOpenMobile, setIsOpenMobile] = useState(false);
+const ConfigForm: React.FC = () => {
+  const {
+    serial, setSerial, batteries, setBatteries, indicators, toggleIndicator, ports, togglePort,
+    portsChecked, setPortsChecked, hasVowel, lastDigit, isEven, resetBomb,
+  } = useBombContext();
 
-  // Defining the form content as a variable, NOT a component, to prevent unmounting and keyboard dismissal.
-  const formContentNodes = (
+  return (
     <div className="space-y-6">
-      {/* Serial Number */}
       <div>
-        <label className="block text-[10px] uppercase text-zinc-500 mb-2 font-mono">Numero Seriale</label>
+        <Label hint={serial ? `${serial.length}/6` : undefined}>Numero seriale</Label>
         <input
           type="text"
           value={serial}
-          onChange={(e) => setSerial(e.target.value.toUpperCase())}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-zinc-100 font-mono uppercase focus:border-amber-500 outline-none"
-          placeholder="Es. AB12C3"
+          onChange={(e) => setSerial(e.target.value)}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="es. AL5QF2"
+          className="h-12 w-full rounded-xl border border-ink-700 bg-ink-850 px-3 font-mono text-lg uppercase tracking-[0.3em] text-ink-100 outline-none placeholder:text-sm placeholder:tracking-normal placeholder:text-ink-500 focus:border-signal"
         />
-      </div>
-
-      {/* Batteries */}
-      <div>
-        <label className="block text-[10px] uppercase text-zinc-500 mb-2 font-mono">Numero di Batterie</label>
-        <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded overflow-hidden">
-          <button
-            onClick={() => setBatteries(Math.max(0, (batteries || 0) - 1))}
-            className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 w-10 flex justify-center border-r border-zinc-800"
-          >
-            <Minus size={16} />
-          </button>
-          <span className="text-sm font-mono text-zinc-100">
-            {batteries !== undefined ? batteries : '-'}
-          </span>
-          <button
-            onClick={() => setBatteries((batteries || 0) + 1)}
-            className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 w-10 flex justify-center border-l border-zinc-800"
-          >
-            <Plus size={16} />
-          </button>
+        <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[11px]">
+          <Tag on={hasVowel}>{hasVowel === undefined ? 'vocale ?' : hasVowel ? 'con vocale' : 'senza vocali'}</Tag>
+          <Tag on={isEven}>
+            {lastDigit === undefined ? 'ultima cifra ?' : `ultima cifra ${lastDigit} · ${isEven ? 'pari' : 'dispari'}`}
+          </Tag>
         </div>
       </div>
 
-      {/* Strikes */}
       <div>
-        <h3 className="text-[10px] uppercase text-zinc-500 mb-2 font-mono">Strikes</h3>
-        <div className="flex gap-2">
-          {[0, 1, 2].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStrikes(s)}
-              className={`flex-1 h-10 border rounded flex items-center justify-center font-mono text-xl transition-all ${
-                strikes === s 
-                ? 'border-red-900 bg-red-950/40 text-red-500 font-bold' 
-                : 'border-zinc-800 bg-zinc-900 text-zinc-700 hover:text-zinc-400 hover:border-zinc-700'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+        <Label>Batterie</Label>
+        <Stepper value={batteries} onChange={setBatteries} label="batterie" />
       </div>
 
-      {/* Indicators */}
       <div>
-        <label className="block text-[10px] uppercase text-zinc-500 mb-2 font-mono">Indicatori Accesi</label>
-        <div className="flex flex-wrap gap-1.5">
-          {COMMON_INDICATORS.map((ind) => (
+        <Label>Errori (strike)</Label>
+        <StrikePicker />
+      </div>
+
+      <div>
+        <Label hint="tocca quelli accesi">Indicatori accesi</Label>
+        <div className="grid grid-cols-4 gap-1.5">
+          {INDICATORS.map((ind) => (
             <button
               key={ind}
+              type="button"
+              aria-pressed={indicators.includes(ind)}
               onClick={() => toggleIndicator(ind)}
-              className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+              className={cx(
+                'h-10 rounded-lg border font-mono text-xs font-bold transition-colors',
                 indicators.includes(ind)
-                  ? 'bg-amber-600/20 text-amber-500 border border-amber-900/50'
-                  : 'bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-300'
-              }`}
+                  ? 'border-signal bg-signal/15 text-signal'
+                  : 'border-ink-700 bg-ink-850 text-ink-500 hover:text-ink-300',
+              )}
             >
+              {indicators.includes(ind) && <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-signal align-middle" />}
               {ind}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Ports */}
       <div>
-        <label className="block text-[10px] uppercase text-zinc-500 mb-2 font-mono">Porte Presenti</label>
-        <div className="flex flex-wrap gap-1.5">
-          {COMMON_PORTS.map((port) => (
+        <Label>Porte presenti</Label>
+        <div className="grid grid-cols-3 gap-1.5">
+          {PORTS.map((p) => (
             <button
-              key={port}
-              onClick={() => togglePort(port)}
-              className={`px-2 py-1 rounded text-[10px] font-mono transition-colors ${
-                ports.includes(port)
-                  ? 'bg-cyan-900/30 text-cyan-500 border border-cyan-900/50'
-                  : 'bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-300'
-              }`}
+              key={p.id}
+              type="button"
+              aria-pressed={ports.includes(p.id)}
+              onClick={() => togglePort(p.id)}
+              className={cx(
+                'h-10 rounded-lg border px-1 text-xs font-semibold transition-colors',
+                ports.includes(p.id)
+                  ? 'border-sky-400 bg-sky-400/15 text-sky-300'
+                  : 'border-ink-700 bg-ink-850 text-ink-500 hover:text-ink-300',
+              )}
             >
-              {port}
+              {p.label}
             </button>
           ))}
         </div>
+        <label className="mt-2 flex items-center gap-2 text-xs text-ink-400">
+          <input
+            type="checkbox"
+            checked={portsChecked}
+            onChange={(e) => setPortsChecked(e.target.checked)}
+            className="h-4 w-4 accent-[var(--color-signal)]"
+          />
+          Porte controllate (nessuna porta = nessuna selezionata)
+        </label>
       </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (confirm('Cancellare tutti i dati della bomba?')) resetBomb();
+        }}
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-stop/30 text-sm font-semibold text-stop/90 hover:bg-stop/10"
+      >
+        <Trash2 size={16} /> Nuova bomba
+      </button>
     </div>
   );
+};
+
+const Tag: React.FC<{ on: boolean | undefined; children: React.ReactNode }> = ({ on, children }) => (
+  <span
+    className={cx(
+      'rounded-md border px-2 py-0.5',
+      on === undefined ? 'border-ink-700 text-ink-500' : 'border-ink-600 bg-ink-800 text-ink-300',
+    )}
+  >
+    {children}
+  </span>
+);
+
+export const BombConfig: React.FC = () => {
+  const { configOpen, setConfigOpen } = useBombContext();
+
+  useEffect(() => {
+    if (!configOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setConfigOpen(false);
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [configOpen, setConfigOpen]);
 
   return (
     <>
-      <aside className="w-80 border-l border-[#27272a] bg-[#09090b] flex-col p-4 shrink-0 overflow-y-auto hidden lg:flex">
-        <h2 className="text-[10px] uppercase tracking-tighter text-zinc-500 mb-4 px-2">Environment Configuration</h2>
-        {formContentNodes}
+      {/* Desktop: barra laterale fissa */}
+      <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-80 shrink-0 overflow-y-auto border-l border-ink-700/70 bg-ink-900/60 p-5 lg:block">
+        <h2 className="mb-5 font-mono text-xs font-bold uppercase tracking-[0.2em] text-signal">Dati bomba</h2>
+        <ConfigForm />
       </aside>
 
-      {/* Mobile Configuration Modal */}
-      <button
-        onClick={() => setIsOpenMobile(true)}
-        className="lg:hidden fixed bottom-4 right-4 bg-amber-500 hover:bg-amber-400 text-gray-900 p-4 rounded-full shadow-lg z-50 transition-transform active:scale-95"
-      >
-        <Settings size={28} />
-      </button>
-
-      {isOpenMobile && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex justify-end backdrop-blur-sm lg:hidden">
-          <div className="bg-[#09090b] w-full max-w-sm h-full shadow-2xl p-6 overflow-y-auto border-l border-[#27272a]">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-[10px] uppercase tracking-tighter text-zinc-500">Environment Configuration</h2>
-              <button onClick={() => setIsOpenMobile(false)} className="text-zinc-500 hover:text-white">
-                <X size={24} />
+      {/* Mobile: bottom sheet */}
+      {configOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Dati bomba">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfigOpen(false)} />
+          <div className="animate-rise safe-bottom absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl border-t border-ink-700 bg-ink-900 px-5 pt-3">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink-600" />
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-signal">Dati bomba</h2>
+              <button
+                type="button"
+                onClick={() => setConfigOpen(false)}
+                aria-label="Chiudi"
+                className="grid h-10 w-10 place-items-center rounded-full bg-ink-800 text-ink-300"
+              >
+                <X size={20} />
               </button>
             </div>
-            {formContentNodes}
+            <ConfigForm />
+            <button
+              type="button"
+              onClick={() => setConfigOpen(false)}
+              className="sticky bottom-0 mt-6 h-12 w-full rounded-xl bg-signal font-semibold text-ink-950"
+            >
+              Fatto
+            </button>
           </div>
         </div>
       )}

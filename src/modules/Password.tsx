@@ -1,93 +1,92 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { BigText, Hint, Panel, Result, ResetButton, cx } from '../components/ui';
 
+// Le 35 password del manuale ufficiale italiano (versione 1-it)
 const WORDS = [
-  "abaco", "aceto", "adoro", "balzo", "capra",
-  "dacci", "danno", "danza", "detto", "dieci",
-  "dieta", "entro", "festa", "fiera", "gnomo",
-  "hotel", "largo", "latte", "nuoto", "opera",
-  "pizza", "posto", "pozzo", "radio", "salve",
-  "salvi", "scudo", "secco", "sigla", "tanto",
-  "tempo", "tetro", "tetto", "tosse", "tozzo"
+  'abaco', 'aceto', 'adoro', 'balzo', 'capra',
+  'dacci', 'danno', 'danza', 'detto', 'dieci',
+  'dieta', 'entro', 'festa', 'fiera', 'gnomo',
+  'hotel', 'largo', 'latte', 'nuoto', 'opera',
+  'pizza', 'posto', 'pozzo', 'radio', 'salve',
+  'salvi', 'scudo', 'secco', 'sigla', 'tanto',
+  'tempo', 'tetro', 'tetto', 'tosse', 'tozzo',
 ];
 
 export const Password: React.FC = () => {
-  const [cols, setCols] = useState<string[]>(['', '', '', '', '']);
+  const [cols, setCols] = useState(['', '', '', '', '']);
 
-  const handleChange = (index: number, val: string) => {
-    const newCols = [...cols];
-    newCols[index] = val.toLowerCase().replace(/[^a-z]/g, '');
-    setCols(newCols);
-  };
-
-  const getFilteredWords = () => {
-    return WORDS.filter(word => {
-      for (let i = 0; i < 5; i++) {
-        if (cols[i].length > 0 && !cols[i].includes(word[i])) {
-          return false;
-        }
-      }
-      return true;
+  const set = (i: number, v: string) =>
+    setCols((c) => {
+      const n = [...c];
+      n[i] = [...new Set(v.toLowerCase().replace(/[^a-z]/g, ''))].join('').slice(0, 6);
+      return n;
     });
-  };
 
-  const filtered = getFilteredWords();
+  const matches = useMemo(
+    () => WORDS.filter((w) => cols.every((letters, i) => !letters || letters.includes(w[i]))),
+    [cols],
+  );
+
+  // Lettere "utili" per colonna: quelle che compaiono nelle password ancora possibili
+  const useful = (i: number) => new Set(matches.map((w) => w[i]));
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <p className="text-gray-400 text-center text-sm">
-        Inserisci le lettere disponibili per ogni colonna (basta scriverle una di seguito all'altra, es: "abcde"). 
-        La password si restringerà automaticamente.
-      </p>
-
-      <div className="grid grid-cols-5 gap-2 md:gap-4">
-        {[1, 2, 3, 4, 5].map((num, idx) => (
-          <div key={num} className="space-y-2">
-            <label className="block text-center text-xs font-mono text-gray-500 uppercase">Col {num}</label>
-            <input
-              type="text"
-              value={cols[idx]}
-              onChange={(e) => handleChange(idx, e.target.value)}
-              className="w-full bg-gray-800 border-2 border-gray-700 rounded-lg p-2 text-center text-white font-mono uppercase text-lg xl:text-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
-              maxLength={6}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 min-h-[12rem]">
-        <div className="flex justify-between items-end mb-4 border-b border-gray-700 pb-2">
-          <h3 className="text-lg font-bold text-white">Password Possibili</h3>
-          <span className="text-sm font-mono text-gray-500">{filtered.length} trovate</span>
+    <div className="space-y-4">
+      <Panel title="Lettere disponibili per colonna" right={<ResetButton onClick={() => setCols(['', '', '', '', ''])} disabled={cols.every((c) => !c)} />}>
+        <Hint className="mb-3 text-xs">
+          Scrivi di seguito le 6 lettere che scorrono in ogni colonna. Di solito bastano le prime due o tre colonne.
+        </Hint>
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
+          {cols.map((v, i) => (
+            <label key={i} className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-center font-mono text-[11px] font-bold text-ink-500">{i + 1}</span>
+              <input
+                value={v.toUpperCase()}
+                onChange={(e) => set(i, e.target.value)}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
+                aria-label={`Lettere della colonna ${i + 1}`}
+                className={cx(
+                  'h-12 w-full rounded-xl border bg-ink-850 px-1 text-center font-mono text-base font-bold uppercase text-ink-100 outline-none focus:border-signal sm:h-14 sm:text-lg sm:tracking-[0.15em]',
+                  v ? 'border-ink-500' : 'border-ink-700',
+                )}
+              />
+              {v && (
+                <span className="flex flex-wrap justify-center gap-0.5 font-mono text-[11px] font-bold uppercase">
+                  {v.split('').map((l) => (
+                    <span key={l} className={useful(i).has(l) ? 'text-signal' : 'text-ink-600 line-through'}>
+                      {l}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </label>
+          ))}
         </div>
-        
-        {filtered.length === 0 ? (
-          <div className="text-center py-8 text-red-500 font-mono">
-            Nessuna password trovata. Controlla le lettere inserite.
-          </div>
-        ) : filtered.length === 1 ? (
-          <div className="text-center py-6 animate-in zoom-in fade-in">
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-green-500 mb-2 block">LA PASSWORD È:</span>
-            <span className="text-3xl sm:text-5xl font-black text-white uppercase tracking-widest sm:tracking-[0.5em]">{filtered[0]}</span>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {filtered.map(w => (
-              <span key={w} className="bg-gray-900 border border-gray-700 px-4 py-2 rounded-lg text-amber-500 font-mono font-bold text-lg uppercase shadow-sm">
+      </Panel>
+
+      {matches.length === 1 ? (
+        <Result tone="go" label="La password è">
+          <BigText className="uppercase tracking-[0.3em]">{matches[0]}</BigText>
+        </Result>
+      ) : matches.length === 0 ? (
+        <Result tone="stop" label="Nessuna password">
+          <p className="text-ink-300">Nessuna parola compatibile: ricontrolla le lettere.</p>
+        </Result>
+      ) : (
+        <Panel title={`Password possibili (${matches.length})`}>
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+            {matches.map((w) => (
+              <span key={w} className="rounded-lg border border-ink-700 bg-ink-850 py-2 text-center font-mono text-sm font-bold uppercase tracking-widest text-ink-100">
                 {w}
               </span>
             ))}
           </div>
-        )}
-      </div>
-      
-      <div className="flex justify-center">
-        <button 
-          onClick={() => setCols(['', '', '', '', ''])}
-          className="text-gray-500 hover:text-white font-mono text-sm underline transition-colors"
-        >
-          Svuota Colonne
-        </button>
-      </div>
+        </Panel>
+      )}
     </div>
   );
 };

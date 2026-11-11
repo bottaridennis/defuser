@@ -1,116 +1,130 @@
 import React, { useState } from 'react';
 import { useBombContext } from '../context/BombContext';
+import { BigText, Choice, Fact, Panel, QuickFacts, Result, cx } from '../components/ui';
 
-const COLORS = [
-  { id: 'red', label: 'Rosso', bg: 'bg-red-500' },
-  { id: 'blue', label: 'Blu', bg: 'bg-blue-500' },
-  { id: 'yellow', label: 'Giallo', bg: 'bg-yellow-400 text-gray-900' },
-  { id: 'white', label: 'Bianco', bg: 'bg-white text-gray-900' },
-  { id: 'other', label: 'Altro', bg: 'bg-gray-700 text-white' }
+type Color = 'blue' | 'white' | 'yellow' | 'red';
+type Label = 'Annulla' | 'Detona' | 'Tieni premuto' | 'Premi';
+
+const COLORS: { id: Color; label: string; cls: string }[] = [
+  { id: 'red', label: 'Rosso', cls: 'bg-red-600 text-white' },
+  { id: 'blue', label: 'Blu', cls: 'bg-blue-600 text-white' },
+  { id: 'yellow', label: 'Giallo', cls: 'bg-yellow-400 text-ink-950' },
+  { id: 'white', label: 'Bianco', cls: 'bg-white text-ink-950' },
 ];
 
-const TEXTS = ['Annulla', 'Detona', 'Tieni', 'Altro'];
+// Il gioco può mostrare la scritta in italiano o in inglese
+const LABELS: { id: Label; en: string }[] = [
+  { id: 'Annulla', en: 'Abort' },
+  { id: 'Detona', en: 'Detonate' },
+  { id: 'Tieni premuto', en: 'Hold' },
+  { id: 'Premi', en: 'Press' },
+];
+
+const STRIPS = [
+  { swatch: 'bg-blue-500', name: 'Blu', digit: 4 },
+  { swatch: 'bg-white', name: 'Bianca', digit: 1 },
+  { swatch: 'bg-yellow-400', name: 'Gialla', digit: 5 },
+  { swatch: 'bg-[conic-gradient(#ef4444,#22c55e,#a855f7,#ef4444)]', name: 'Altro colore', digit: 1 },
+];
+
+type Outcome = { action: 'HOLD' | 'PRESS'; rule: string } | { action: 'NEED'; need: Fact[] };
+
+/** Regole del manuale (Sezione "Il Pulsante"), applicate in ordine. */
+function solve(color: Color, label: Label, batteries: number | undefined, car: boolean, frk: boolean): Outcome {
+  if (color === 'blue' && label === 'Annulla') return { action: 'HOLD', rule: 'Pulsante blu con scritta "Annulla"' };
+  if (label === 'Detona') {
+    if (batteries === undefined) return { action: 'NEED', need: ['batteries'] };
+    if (batteries > 1) return { action: 'PRESS', rule: 'Più di una batteria e scritta "Detona"' };
+  }
+  if (color === 'white' && car) return { action: 'HOLD', rule: 'Pulsante bianco e indicatore CAR acceso' };
+  if (frk) {
+    if (batteries === undefined) return { action: 'NEED', need: ['batteries'] };
+    if (batteries > 2) return { action: 'PRESS', rule: 'Più di due batterie e indicatore FRK acceso' };
+  }
+  if (color === 'yellow') return { action: 'HOLD', rule: 'Pulsante giallo' };
+  if (color === 'red' && label === 'Tieni premuto') return { action: 'PRESS', rule: 'Pulsante rosso con scritta "Tieni premuto"' };
+  return { action: 'HOLD', rule: 'Nessuna regola precedente applicabile' };
+}
 
 export const ButtonModule: React.FC = () => {
   const { batteries, indicators } = useBombContext();
-  const [color, setColor] = useState('red');
-  const [text, setText] = useState('Detona');
+  const [color, setColor] = useState<Color | null>(null);
+  const [label, setLabel] = useState<Label | null>(null);
 
-  const calculateAction = (): 'HOLD' | 'PRESS' | 'MISSING_DATA' => {
-    if (color === 'blue' && text === 'Annulla') return 'HOLD';
-    if (batteries === undefined) return 'MISSING_DATA';
-    if (batteries > 1 && text === 'Detona') return 'PRESS';
-    if (color === 'white' && indicators.includes('CAR')) return 'HOLD';
-    if (batteries > 2 && indicators.includes('FRK')) return 'PRESS';
-    if (color === 'yellow') return 'HOLD';
-    if (color === 'red' && text === 'Tieni') return 'PRESS';
-    return 'HOLD';
-  };
-
-  const action = calculateAction();
+  const res = color && label ? solve(color, label, batteries, indicators.includes('CAR'), indicators.includes('FRK')) : null;
 
   return (
-    <div className="space-y-8">
-      <div className="grid md:grid-cols-2 gap-8">
-        <div>
-          <label className="block text-sm font-medium text-gray-400 mb-3">Colore del Pulsante</label>
-          <div className="flex flex-col gap-2">
-            {COLORS.map(c => (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Panel title="Colore del pulsante" step={1}>
+          <div className="grid grid-cols-2 gap-2">
+            {COLORS.map((c) => (
               <button
                 key={c.id}
+                type="button"
+                aria-pressed={color === c.id}
                 onClick={() => setColor(c.id)}
-                className={`py-3 rounded font-bold transition-all ${
-                  color === c.id 
-                  ? `${c.bg} ring-2 ring-amber-500 ring-offset-2 ring-offset-gray-900 scale-105` 
-                  : `${c.bg} opacity-50 hover:opacity-100`
-                }`}
+                className={cx(
+                  'h-14 rounded-xl text-sm font-bold transition-[opacity,transform] active:scale-[0.97]',
+                  c.cls,
+                  color === c.id ? 'ring-2 ring-signal ring-offset-2 ring-offset-ink-900' : color ? 'opacity-30' : 'opacity-90',
+                )}
               >
                 {c.label}
               </button>
             ))}
           </div>
-        </div>
+        </Panel>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-400 mb-3">Scritta sul Pulsante</label>
-          <div className="flex flex-col gap-2">
-            {TEXTS.map(t => (
-              <button
-                key={t}
-                onClick={() => setText(t)}
-                className={`py-3 rounded font-mono font-bold transition-all uppercase ${
-                  text === t 
-                  ? `bg-gray-700 text-amber-500 ring-2 ring-amber-500 ring-offset-2 ring-offset-gray-900 scale-105` 
-                  : `bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white`
-                }`}
-              >
-                {t}
-              </button>
+        <Panel title="Scritta sul pulsante" step={2}>
+          <div className="grid grid-cols-2 gap-2">
+            {LABELS.map((l) => (
+              <Choice key={l.id} active={label === l.id} onClick={() => setLabel(l.id)} className="h-14 leading-tight">
+                <span className="block uppercase">{l.id}</span>
+                <span className="block text-[10px] font-normal opacity-60">{l.en}</span>
+              </Choice>
             ))}
           </div>
-        </div>
+        </Panel>
       </div>
 
-      <div className="pt-6 border-t border-gray-800 mt-8">
-        {action === 'MISSING_DATA' ? (
-          <div className="bg-amber-900/30 border border-amber-500/50 p-4 rounded-lg">
-            <p className="text-amber-400 font-bold mb-1">Dati Bomba Richiesti</p>
-            <p className="text-amber-300/80 text-sm">Inserisci il numero di batterie nelle impostazioni bomba.</p>
+      <QuickFacts facts={['batteries', 'CAR', 'FRK']} highlight={res?.action === 'NEED' ? res.need : []} />
+
+      {!res ? (
+        <Result tone="idle">
+          <p className="text-sm text-ink-400">Scegli colore e scritta del pulsante.</p>
+        </Result>
+      ) : res.action === 'NEED' ? (
+        <Result tone="warn" label="Dato mancante">
+          <p className="text-ink-300">Indica il numero di batterie per continuare.</p>
+        </Result>
+      ) : res.action === 'PRESS' ? (
+        <Result tone="go" label="Azione">
+          <BigText>Premi e rilascia subito</BigText>
+          <p className="mt-1 text-xs text-ink-400">{res.rule}</p>
+        </Result>
+      ) : (
+        <Result tone="info" label="Azione">
+          <BigText>Tieni premuto</BigText>
+          <p className="mt-1 text-xs text-ink-400">{res.rule}</p>
+          <div className="mt-4 text-left">
+            <p className="mb-2 text-center text-sm text-ink-300">Guarda la striscia colorata a destra del pulsante:</p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {STRIPS.map((s) => (
+                <li key={s.name} className="flex items-center gap-3 rounded-xl border border-ink-700 bg-ink-900 p-2.5">
+                  <span className={cx('h-9 w-3 shrink-0 rounded-full', s.swatch)} />
+                  <span className="flex-1 text-sm text-ink-300">Striscia {s.name.toLowerCase()}</span>
+                  <span className="text-right text-[11px] leading-tight text-ink-400">
+                    rilascia con un
+                    <span className="ml-1 font-mono text-2xl font-bold text-signal">{s.digit}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-center text-xs text-ink-500">…in qualsiasi posizione del timer.</p>
           </div>
-        ) : action === 'PRESS' ? (
-          <div className="bg-green-900/20 border border-green-500/30 p-4 sm:p-6 rounded-lg text-center">
-            <p className="text-green-500 uppercase tracking-widest text-[10px] sm:text-sm font-bold mb-2">Azione Richiesta</p>
-            <p className="text-xl sm:text-3xl lg:text-4xl font-black text-white">Premi e rilascia subito</p>
-          </div>
-        ) : (
-          <div className="bg-blue-900/20 border border-blue-500/30 p-6 rounded-lg">
-            <div className="text-center mb-6">
-              <p className="text-blue-500 uppercase tracking-widest text-[10px] sm:text-sm font-bold mb-2">Azione Richiesta</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white">TIENI PREMUTO</p>
-              <p className="text-gray-400 mt-2 text-xs sm:text-sm">mentre tieni premuto, guarda la striscia illuminata a lato:</p>
-            </div>
-            
-            <div className="grid gap-3 font-mono text-sm">
-              <div className="flex items-center gap-4 bg-gray-800/80 p-3 rounded">
-                <div className="w-8 h-8 rounded bg-blue-500 flex-shrink-0"></div>
-                <div className="text-gray-300">Rilascia quando il timer ha un <strong className="text-amber-400 text-xl mx-1">4</strong> in qualsiasi posizione</div>
-              </div>
-              <div className="flex items-center gap-4 bg-gray-800/80 p-3 rounded">
-                <div className="w-8 h-8 rounded bg-white flex-shrink-0"></div>
-                <div className="text-gray-300">Rilascia quando il timer ha un <strong className="text-amber-400 text-xl mx-1">1</strong> in qualsiasi posizione</div>
-              </div>
-              <div className="flex items-center gap-4 bg-gray-800/80 p-3 rounded">
-                <div className="w-8 h-8 rounded bg-yellow-400 flex-shrink-0"></div>
-                <div className="text-gray-300">Rilascia quando il timer ha un <strong className="text-amber-400 text-xl mx-1">5</strong> in qualsiasi posizione</div>
-              </div>
-              <div className="flex items-center gap-4 bg-gray-800/80 p-3 rounded">
-                <div className="w-8 h-8 rounded bg-gray-500 flex-shrink-0 flex items-center justify-center text-[10px] text-white">ALTRO</div>
-                <div className="text-gray-300">Rilascia quando il timer ha un <strong className="text-amber-400 text-xl mx-1">1</strong> in qualsiasi posizione</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        </Result>
+      )}
     </div>
   );
 };

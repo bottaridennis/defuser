@@ -1,37 +1,52 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import { BigText, GhostButton, Hint, Panel, Result, cx } from '../components/ui';
 
-const STEP1_MAP: Record<string, string> = {
-  "SI": "Centro Sinistra",
-  "PRIMO": "In Alto a Destra",
-  "DISPLAY": "In Basso a Destra",
-  "SCHERMO": "In Basso a Destra",
-  "SCHERNO": "In Basso a Destra",
-  "NULLA": "Centro Sinistra",
-  "[VUOTO]": "In Basso a Sinistra", // Lo schermo letteralmente vuoto
-  "VUOTO": "Centro Destra",         // La parola VUOTO
-  "NO": "In Basso a Destra",
-  "SCHERZO": "Centro Sinistra",
-  "FERMO": "In Basso a Destra",
-  "STOP": "In Basso a Destra",
-  "SPINGI": "Centro Destra",
-  "AH AH": "In Basso a Destra",
-  "TERZO": "In Basso a Sinistra",
-  "ASPETTA": "In Basso a Destra",
-  "OK": "In Alto a Destra",
-  "NO NO": "In Basso a Destra",
-  "SII": "Centro Destra",
-  "SI SI": "In Basso a Destra",
-  "COME?": "In Alto a Sinistra",
-  "SOPRA": "In Basso a Destra",
-  "IN ALTO": "In Basso a Sinistra",
-  "SOTTO": "In Basso a Destra",
-  "IN BASSO": "Centro Sinistra",
-  "AH": "In Basso a Destra",
-  "A": "In Alto a Destra",
-  "HA": "In Basso a Destra"
+type Pos = 'TL' | 'TR' | 'ML' | 'MR' | 'BL' | 'BR';
+
+const POS_LABEL: Record<Pos, string> = {
+  TL: 'In alto a sinistra',
+  TR: 'In alto a destra',
+  ML: 'Al centro a sinistra',
+  MR: 'Al centro a destra',
+  BL: 'In basso a sinistra',
+  BR: 'In basso a destra',
 };
 
-const STEP2_MAP: Record<string, string[]> = {
+/** Step 1 — parola sul DISPLAY -> etichetta da leggere (manuale ufficiale italiano). */
+const STEP1: Record<string, Pos> = {
+  'SI': 'ML',
+  'PRIMO': 'TR',
+  'DISPLAY': 'BR',
+  'SCHERMO': 'TR',
+  'SCHERNO': 'BR',
+  'NULLA': 'ML',
+  '': 'BL', // display completamente vuoto
+  'VUOTO': 'MR',
+  'NO': 'BR',
+  'SCHERZO': 'ML',
+  'FERMO': 'BR',
+  'STOP': 'MR',
+  'SPINGI': 'MR',
+  'AH AH': 'BL',
+  'TERZO': 'BL',
+  'ASPETTA': 'BR',
+  'OK': 'MR',
+  'NO NO': 'BR',
+  'SII': 'MR',
+  'SI SI': 'MR',
+  'COME?': 'TL',
+  'SOPRA': 'BR',
+  'IN ALTO': 'BL',
+  'SOTTO': 'MR',
+  'IN BASSO': 'ML',
+  'AH': 'BR',
+  'A': 'TR',
+  'HA': 'BR',
+};
+
+/** Step 2 — etichetta letta -> premi la PRIMA parola di questa lista presente sul modulo. */
+const STEP2: Record<string, string[]> = {
   "PRONTO": ["SI", "OKAY", "COSA", "IN MEZZO", "SINISTRA", "OK", "DESTRA", "VUOTO", "PRONTO", "NO", "PRIMO", "EH", "NULLA", "FERMO"],
   "PRIMO": ["SINISTRA", "OKAY", "SI", "IN MEZZO", "NO", "DESTRA", "NULLA", "EH", "FERMO", "PRONTO", "VUOTO", "COSA", "OK", "PRIMO"],
   "NO": ["VUOTO", "EH", "FERMO", "PRIMO", "COSA", "PRONTO", "DESTRA", "SI", "NULLA", "SINISTRA", "OK", "OKAY", "NO", "IN MEZZO"],
@@ -48,155 +63,179 @@ const STEP2_MAP: Record<string, string[]> = {
   "OK": ["DESTRA", "IN MEZZO", "SI", "PRONTO", "OK", "OKAY", "NULLA", "EH", "VUOTO", "SINISTRA", "PRIMO", "COSA", "NO", "FERMO"],
   "PREMI": ["CERTO", "NO NO", "SII", "SI SI", "DOPO", "EH?", "COME?", "ALT", "COSA?", "PREMI", "E?", "COME", "FATTO", "NOO"],
   "NO NO": ["SII", "DOPO", "COME", "EH?", "COSA?", "FATTO", "E?", "ALT", "PREMI", "NOO", "SI SI", "CERTO", "COME?", "NO NO"],
-  "NOO": ["VUOTO", "COSA?", "OK", "CERA", "FATTO", "NO NO", "EH?", "CERTO", "SI SI", "ALT", "EH", "DOPO", "E?", "NOO"],
-  "FATTO": ["CERTO", "NO NO", "EH?", "COSA?", "E?", "NOO", "ALT", "COME", "COME?", "SII", "DOPO", "SI SI", "PREMI", "FATTO"],
-  "EH?": ["EH?", "CERTO", "NO NO", "DOPO", "E?", "FATTO", "NOO", "COSA?", "COME?", "SII", "SI SI", "ALT", "COME", "PREMI"],
-  "COSA?": ["SII", "FATTO", "CERTO", "SI SI", "NOO", "ALT", "COME?", "EH?", "DOPO", "E?", "COME", "PREMI", "NO NO", "COSA?"],
-  "E?": ["CERTO", "COSA?", "EH?", "DOPO", "FATTO", "COME", "NO NO", "SI SI", "COME?", "NOO", "ALT", "SII", "PREMI", "E?"],
-  "CERTO": ["SI SI", "NOO", "FATTO", "SII", "COME", "EH?", "NO NO", "COME?", "E?", "COSA?", "DOPO", "ALT", "PREMI", "CERTO"],
-  "ALT": ["EH?", "NOO", "DOPO", "COME?", "CERTO", "COME", "FATTO", "COSA?", "PREMI", "SI SI", "E?", "NO NO", "SII", "ALT"],
-  "SI SI": ["OKAY", "CERTO", "PREMI", "VUOTO", "FATTO", "EH?", "NOO", "COSA?", "COME", "DOPO", "ALT", "SII", "COME?", "SI SI"],
-  "SII": ["CERTO", "E?", "FATTO", "EH?", "DOPO", "COME?", "NO NO", "PREMI", "NOO", "COSA?", "SI SI", "COME", "ALT", "SII"],
-  "COME?": ["NOO", "EH?", "NO NO", "COME", "FATTO", "CERTO", "DOPO", "SI SI", "PREMI", "COME?", "ALT", "COSA?", "E?", "SII"],
-  "DOPO": ["NOO", "EH?", "NO NO", "COME", "FATTO", "CERTO", "DOPO", "SI SI", "PREMI", "COME?", "ALT", "COSA?", "E?", "SII"],
-  "COME": ["SI SI", "DOPO", "NOO", "COME?", "ALT", "FATTO", "E?", "COSA?", "EH?", "PREMI", "COME", "CERTO", "NO NO", "SII"]
+  "SII": ["E?", "NO NO", "EH?", "SII", "DOPO", "COME?", "CERTO", "NOO", "SI SI", "PREMI", "COSA?", "ALT", "COME", "FATTO"],
+  "SI SI": ["PREMI", "SI SI", "COME?", "DOPO", "E?", "NO NO", "NOO", "SII", "COSA?", "EH?", "CERTO", "FATTO", "COME", "ALT"],
+  "COME?": ["FATTO", "NOO", "COME?", "EH?", "COSA?", "CERTO", "SII", "ALT", "SI SI", "COME", "DOPO", "E?", "NO NO", "PREMI"],
+  "NOO": ["EH?", "CERTO", "DOPO", "COSA?", "SI SI", "COME?", "E?", "FATTO", "NOO", "PREMI", "COME", "ALT", "NO NO", "SII"],
+  "EH?": ["EH?", "SII", "NO NO", "PREMI", "FATTO", "ALT", "E?", "DOPO", "CERTO", "COME", "SI SI", "COME?", "NOO", "COSA?"],
+  "E?": ["COME?", "NOO", "NO NO", "SI SI", "DOPO", "E?", "FATTO", "PREMI", "EH?", "COME", "SII", "CERTO", "ALT", "COSA?"],
+  "COSA?": ["PREMI", "ALT", "SI SI", "SII", "NOO", "FATTO", "E?", "COME", "NO NO", "EH?", "COME?", "DOPO", "COSA?", "CERTO"],
+  "FATTO": ["CERTO", "EH?", "DOPO", "COSA?", "SII", "COME?", "SI SI", "ALT", "COME", "PREMI", "NOO", "NO NO", "E?", "FATTO"],
+  "DOPO": ["COSA?", "EH?", "E?", "SII", "ALT", "CERTO", "DOPO", "COME", "FATTO", "NO NO", "COME?", "SI SI", "NOO", "PREMI"],
+  "ALT": ["NO NO", "NOO", "FATTO", "E?", "PREMI", "COME?", "CERTO", "COSA?", "SI SI", "DOPO", "ALT", "EH?", "SII", "COME"],
+  "CERTO": ["NO NO", "FATTO", "COME", "SI SI", "PREMI", "ALT", "EH?", "COME?", "CERTO", "NOO", "COSA?", "DOPO", "SII", "E?"],
+  "COME": ["SI SI", "DOPO", "NOO", "COME?", "ALT", "FATTO", "E?", "COSA?", "EH?", "PREMI", "COME", "CERTO", "NO NO", "SII"],
 };
 
-// Ordina le chiavi alfabeticamente per facilitare la ricerca visiva
-const sortedStep1Keys = Object.keys(STEP1_MAP).sort((a,b) => a.localeCompare(b));
-const sortedStep2Keys = Object.keys(STEP2_MAP).sort((a,b) => a.localeCompare(b));
+const byAlpha = (a: string, b: string) => a.localeCompare(b, 'it');
+const STEP1_WORDS = Object.keys(STEP1).sort(byAlpha);
+const STEP2_WORDS = Object.keys(STEP2).sort(byAlpha);
+
+const WordGrid: React.FC<{ words: string[]; onPick: (w: string) => void; render?: (w: string) => React.ReactNode }> = ({
+  words,
+  onPick,
+  render,
+}) => (
+  <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+    {words.map((w) => (
+      <button
+        key={w || '__empty'}
+        type="button"
+        onClick={() => onPick(w)}
+        className="min-h-12 rounded-xl border border-ink-700 bg-ink-850 px-1 font-mono text-[13px] font-bold uppercase leading-tight text-ink-100 transition-[border-color,transform] hover:border-signal active:scale-95"
+      >
+        {render ? render(w) : w}
+      </button>
+    ))}
+  </div>
+);
+
+const filterWords = (words: string[], q: string) => {
+  const n = q.trim().toUpperCase();
+  return n ? words.filter((w) => w.includes(n)) : words;
+};
+
+const SearchBox: React.FC<{ value: string; onChange: (v: string) => void; placeholder: string }> = ({ value, onChange, placeholder }) => (
+  <label className="mb-3 flex h-11 items-center gap-2 rounded-xl border border-ink-700 bg-ink-850 px-3 focus-within:border-signal">
+    <Search size={16} className="text-ink-500" />
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      autoCapitalize="characters"
+      autoCorrect="off"
+      autoComplete="off"
+      spellCheck={false}
+      className="h-full w-full bg-transparent font-mono uppercase text-ink-100 outline-none placeholder:normal-case placeholder:text-ink-500"
+    />
+  </label>
+);
+
+const PositionMap: React.FC<{ pos: Pos }> = ({ pos }) => (
+  <div className="mx-auto w-40 rounded-xl border border-ink-600 bg-ink-950 p-2">
+    <div className="mb-2 grid h-7 place-items-center rounded bg-ink-800 font-mono text-[10px] text-ink-500">DISPLAY</div>
+    <div className="grid grid-cols-2 gap-1.5">
+      {(['TL', 'TR', 'ML', 'MR', 'BL', 'BR'] as Pos[]).map((p) => (
+        <span key={p} className={cx('h-6 rounded', p === pos ? 'bg-signal shadow-[0_0_12px_var(--color-signal)]' : 'bg-ink-800')} />
+      ))}
+    </div>
+  </div>
+);
 
 export const WhosOnFirst: React.FC = () => {
-  const [step1Word, setStep1Word] = useState<string | null>(null);
-  const [step2Word, setStep2Word] = useState<string | null>(null);
+  const [display, setDisplay] = useState<string | null>(null);
+  const [label, setLabel] = useState<string | null>(null);
   const [stage, setStage] = useState(1);
+  const [q1, setQ1] = useState('');
+  const [q2, setQ2] = useState('');
 
-  const reset = () => {
-    setStep1Word(null);
-    setStep2Word(null);
-  };
-  
-  const resetAll = () => {
-    reset();
-    setStage(1);
-  };
+  const words1 = useMemo(() => filterWords(STEP1_WORDS, q1), [q1]);
+  const words2 = useMemo(() => filterWords(STEP2_WORDS, q2), [q2]);
 
+  const resetStep = () => {
+    setDisplay(null);
+    setLabel(null);
+    setQ1('');
+    setQ2('');
+  };
   const nextStage = () => {
-    reset();
-    setStage(prev => prev + 1);
+    resetStep();
+    setStage((s) => (s >= 3 ? 1 : s + 1));
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in">
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-        <div>
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-3">
-             Incomprensioni
-             <span className="flex gap-1 items-center">
-               {[1, 2, 3].map(i => (
-                 <span key={i} className={`w-3 h-3 rounded-full border border-zinc-700 transition-all ${stage === i ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] scale-125' : stage > i ? 'bg-green-500' : 'bg-transparent'}`} />
-               ))}
-             </span>
-          </h2>
-          <p className="text-sm text-zinc-500 mt-1">Stadio {stage} di 3. Segui i due passaggi per disinnescare la fase.</p>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-xs uppercase tracking-widest text-ink-400">Fase</span>
+        <div className="flex gap-1.5">
+          {[1, 2, 3].map((i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                resetStep();
+                setStage(i);
+              }}
+              className={cx(
+                'h-8 w-8 rounded-lg border font-mono text-sm font-bold',
+                stage === i ? 'border-signal bg-signal text-ink-950' : stage > i ? 'border-go/50 text-go' : 'border-ink-700 text-ink-500',
+              )}
+            >
+              {i}
+            </button>
+          ))}
         </div>
-        <button onClick={resetAll} className="text-xs font-mono uppercase bg-zinc-900 border border-zinc-800 hover:border-red-500/50 hover:bg-red-950/30 text-zinc-400 p-2 rounded transition-colors">
-          Ricomincia Tutto
-        </button>
+        <GhostButton className="ml-auto" onClick={resetStep} disabled={display === null}>
+          Ricomincia fase
+        </GhostButton>
       </div>
 
-      {!step1Word ? (
-        <div className="bg-[#09090b] rounded p-6 shadow-xl border border-[#27272a]">
-          <h3 className="text-sm font-mono text-amber-500 mb-6 flex items-center gap-2">
-            <span className="bg-amber-500 text-zinc-950 w-6 h-6 inline-flex items-center justify-center font-bold">1</span>
-            Seleziona la parola che appare nel DISPLAY in alto
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2">
-            {sortedStep1Keys.map(word => (
-              <button
-                key={word}
-                onClick={() => setStep1Word(word)}
-                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-mono text-[10px] sm:text-xs py-2 px-1 sm:py-3 sm:px-2 rounded border border-zinc-800 hover:border-zinc-500 transition-colors uppercase tracking-widest leading-tight min-h-[48px] sm:min-h-[60px] flex items-center justify-center text-center active:scale-95 break-words"
-              >
-                {word === "[VUOTO]" ? <span className="opacity-50 italic whitespace-nowrap">{"[Nessun Testo]"}</span> : <span className="break-words px-1">{word}</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : !step2Word ? (
-        <div className="bg-[#09090b] border border-zinc-700 rounded p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
-          <h3 className="text-sm font-mono text-amber-500 mb-6 flex items-center gap-2">
-            <span className="bg-amber-500 text-zinc-950 w-6 h-6 inline-flex items-center justify-center font-bold">2</span>
-            Leggi la parola del pulsante...
-          </h3>
-          <div className="text-center p-4 sm:p-8 bg-zinc-950 rounded border border-zinc-800 mb-6 shadow-inner">
-            <p className="text-zinc-500 text-[10px] sm:text-xs font-mono mb-2 uppercase tracking-widest">Guarda il pulsante situato in:</p>
-            <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-amber-500 uppercase tracking-tighter break-words px-2">{STEP1_MAP[step1Word]}</p>
-          </div>
-          
-          <p className="text-zinc-400 text-xs sm:text-sm mb-4">Quale parola c'è scritta su <strong className="text-white">QUEL</strong> pulsante?</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2 max-h-[40vh] overflow-y-auto pr-1">
-            {sortedStep2Keys.map(word => (
-              <button
-                key={word}
-                onClick={() => setStep2Word(word)}
-                className="bg-zinc-900 border border-zinc-800 hover:bg-amber-950/30 hover:border-amber-900/50 text-zinc-300 hover:text-amber-500 font-mono text-[10px] sm:text-xs py-2 px-1 sm:py-3 sm:px-2 min-h-[48px] sm:min-h-[60px] rounded transition-colors active:scale-95 text-center flex items-center justify-center leading-tight uppercase break-words"
-              >
-                <span className="break-words px-1">{word}</span>
-              </button>
-            ))}
-          </div>
-          
-          <button 
-            onClick={reset}
-            className="mt-6 w-full py-3 bg-zinc-900 border border-zinc-800 text-zinc-500 font-mono text-xs hover:text-zinc-300 hover:bg-zinc-800 transition-colors uppercase"
-          >
-            ← Ho sbagliato Display
-          </button>
-        </div>
+      {display === null ? (
+        <Panel title="Cosa c'è scritto sul display?" step={1}>
+          <SearchBox value={q1} onChange={setQ1} placeholder="Cerca parola…" />
+          <WordGrid
+            words={words1}
+            onPick={(w) => setDisplay(w)}
+            render={(w) => (w === '' ? <span className="font-sans text-xs font-normal italic text-ink-400">(display vuoto)</span> : w)}
+          />
+        </Panel>
+      ) : label === null ? (
+        <>
+          <Result tone="info" label={`Display: ${display === '' ? '(vuoto)' : display}`}>
+            <p className="mb-3 text-sm text-ink-300">Leggi la parola sul pulsante</p>
+            <BigText className="mb-3 text-2xl sm:text-3xl">{POS_LABEL[STEP1[display]]}</BigText>
+            <PositionMap pos={STEP1[display]} />
+          </Result>
+          <Panel title="Che parola c'è su quel pulsante?" step={2}>
+            <SearchBox value={q2} onChange={setQ2} placeholder="Cerca parola…" />
+            <WordGrid words={words2} onPick={(w) => setLabel(w)} />
+          </Panel>
+        </>
       ) : (
-        <div className="bg-zinc-950 border border-green-900/50 rounded p-6 shadow-[0_0_30px_rgba(34,197,94,0.1)] relative overflow-hidden animate-in zoom-in-95">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent"></div>
-          <h3 className="text-green-500 font-mono text-sm mb-6 flex items-center gap-2 uppercase tracking-widest">
-            <span className="bg-green-500 text-zinc-950 w-5 h-5 flex items-center justify-center font-bold">!</span>
-            Soluzione Trovata
-          </h3>
-          
-          <p className="text-zinc-400 mb-4 text-center">Premi il <strong className="text-zinc-100">PRIMO</strong> pulsante della tua bomba che compare in questa lista:</p>
-          
-          <div className="flex flex-wrap gap-2 justify-center mb-10">
-            {STEP2_MAP[step2Word].map((word, idx) => (
-              <div key={idx} className="bg-zinc-900 border border-zinc-800 px-4 py-3 rounded text-amber-500 font-mono font-bold shadow-sm flex items-center">
-                <span className="text-zinc-600 text-[10px] mr-2 text-right w-4">{idx + 1}.</span>
-                {word}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-4 border-t border-zinc-900 pt-6">
-            <button 
-              onClick={reset}
-              className="flex-1 py-3 bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 border border-zinc-800 rounded font-mono text-xs uppercase transition-colors"
+        <>
+          <Result tone="go" label={`Pulsante letto: ${label}`}>
+            <p className="mb-3 text-sm text-ink-300">
+              Premi il <strong className="text-ink-100">primo</strong> pulsante del modulo che compare in questa lista:
+            </p>
+            <ol className="grid grid-cols-2 gap-1.5 text-left sm:grid-cols-3">
+              {STEP2[label].map((w, i) => (
+                <li
+                  key={w}
+                  className={cx(
+                    'flex items-center gap-2 rounded-lg border px-2.5 py-2 font-mono text-sm font-bold',
+                    w === label ? 'border-signal/60 bg-ink-900 text-signal' : 'border-ink-700 bg-ink-900 text-ink-100',
+                  )}
+                >
+                  <span className="w-5 text-right text-[11px] text-ink-500">{i + 1}</span>
+                  {w}
+                </li>
+              ))}
+            </ol>
+          </Result>
+          <div className="grid grid-cols-2 gap-2">
+            <GhostButton className="h-12" onClick={() => setLabel(null)}>
+              ← Cambia parola
+            </GhostButton>
+            <button
+              type="button"
+              onClick={nextStage}
+              className="h-12 rounded-lg bg-signal text-sm font-bold uppercase tracking-wide text-ink-950 active:scale-[0.98]"
             >
-              ← Indietro
+              {stage < 3 ? `Fase ${stage + 1} →` : 'Fatto ✓'}
             </button>
-            {stage < 3 ? (
-              <button 
-                onClick={nextStage}
-                className="flex-1 py-3 bg-green-950/30 text-green-500 hover:bg-green-900/50 border border-green-900/50 rounded font-mono font-bold text-xs uppercase shadow-[0_0_15px_rgba(34,197,94,0.1)] transition-all active:scale-95"
-              >
-                Passa allo Stadio {stage + 1} → 
-              </button>
-            ) : (
-                <button 
-                onClick={resetAll}
-                className="flex-1 py-3 bg-amber-950/30 text-amber-500 hover:bg-amber-900/50 border border-amber-900/50 rounded font-mono font-bold text-xs uppercase shadow-[0_0_15px_rgba(245,158,11,0.1)] transition-all active:scale-95"
-              >
-                Disinnescato! Nuova Bomba
-              </button>
-            )}
           </div>
-        </div>
+          <Hint className="text-center text-xs">Se sbagli, il modulo ricomincia dalla fase 1.</Hint>
+        </>
       )}
     </div>
   );

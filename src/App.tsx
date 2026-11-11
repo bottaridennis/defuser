@@ -1,123 +1,108 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { BombProvider } from './context/BombContext';
 import { BombConfig } from './components/BombConfig';
 import { BombStatusBar } from './components/BombStatusBar';
 import { ModuleHub } from './components/ModuleHub';
+import { MODULE_BY_ID, ModuleId } from './modules/registry';
 
-// Placeholder for module imports
-import { Wires } from './modules/Wires';
-import { ButtonModule } from './modules/ButtonModule';
-import { Keypads } from './modules/Keypads';
-import { SimonSays } from './modules/SimonSays';
-import { WhosOnFirst } from './modules/WhosOnFirst';
-import { Memory } from './modules/Memory';
-import { MorseCode } from './modules/MorseCode';
-import { CompWires } from './modules/CompWires';
-import { WireSequences } from './modules/WireSequences';
-import { Mazes } from './modules/Mazes';
-import { Password } from './modules/Password';
-import { Knobs } from './modules/Knobs';
-import { VentingGas } from './modules/VentingGas';
-import { CapacitorDischarge } from './modules/CapacitorDischarge';
-
-type ModuleIdExport = 'wires' | 'button' | 'keypads' | 'simon' | 'whosonfirst' | 'memory' | 'morse' | 'compwires' | 'wireseq' | 'mazes' | 'password' | 'knobs' | 'ventinggas' | 'capacitor' | null;
-export type ModuleId = ModuleIdExport;
-
-export const MODULE_NAMES: Record<string, string> = {
-  wires: 'Cavi Semplici',
-  button: 'Il Pulsante',
-  keypads: 'Tastierini',
-  simon: 'Simon Dice',
-  whosonfirst: 'Incomprensioni',
-  memory: 'Memory',
-  morse: 'Codice Morse',
-  compwires: 'Cavi Complessi',
-  wireseq: 'Sequenze di Cavi',
-  mazes: 'Labirinti',
-  password: 'Password',
-  knobs: 'Manopole',
-  ventinggas: 'Sfogo Gas',
-  capacitor: 'Condensatore',
-};
+/** Legge il modulo attivo dall'hash (#/cavi) così il tasto "indietro" del telefono funziona. */
+function readHash(): ModuleId | null {
+  const id = window.location.hash.replace(/^#\/?/, '') as ModuleId;
+  return id && id in MODULE_BY_ID ? id : null;
+}
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState<ModuleId>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [active, setActive] = useState<ModuleId | null>(readHash);
 
-  const renderModule = () => {
-    switch (activeModule) {
-      case 'wires': return <Wires />;
-      case 'button': return <ButtonModule />;
-      case 'keypads': return <Keypads />;
-      case 'simon': return <SimonSays />;
-      case 'whosonfirst': return <WhosOnFirst />;
-      case 'memory': return <Memory />;
-      case 'morse': return <MorseCode />;
-      case 'compwires': return <CompWires />;
-      case 'wireseq': return <WireSequences />;
-      case 'mazes': return <Mazes />;
-      case 'password': return <Password />;
-      case 'knobs': return <Knobs />;
-      case 'ventinggas': return <VentingGas />;
-      case 'capacitor': return <CapacitorDischarge />;
-      default: return null;
+  useEffect(() => {
+    const onHash = () => {
+      setActive(readHash());
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // true se siamo arrivati al modulo dalla home: in quel caso "indietro" usa la cronologia
+  const fromHub = useRef(false);
+  const open = (id: ModuleId) => {
+    fromHub.current = true;
+    window.location.hash = `/${id}`;
+  };
+  const back = () => {
+    if (fromHub.current) {
+      fromHub.current = false;
+      window.history.back();
+    } else {
+      window.location.hash = '';
     }
   };
 
+  const mod = active ? MODULE_BY_ID[active] : null;
+
+  useEffect(() => {
+    document.title = mod ? `${mod.name} · Defuser` : 'Defuser';
+  }, [mod]);
+
   return (
     <BombProvider>
-      <div className="w-full min-h-screen bg-[#050505] text-[#d4d4d8] font-sans flex flex-col overflow-hidden">
-        
-        <header className="h-16 border-b border-[#27272a] bg-[#09090b] flex items-center justify-between px-4 lg:px-8 shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)] animate-pulse"></div>
-            <span className="font-mono text-sm tracking-[0.2em] uppercase text-zinc-500 hidden sm:inline">DefuseKit IT</span>
-          </div>
-          <div className="text-center">
-            <h1 className="text-lg lg:text-xl font-bold tracking-widest uppercase italic text-zinc-100">Expert Defusal Protocol v4.1</h1>
-          </div>
-          <div className="flex items-center gap-6">
+      <div className="flex min-h-dvh flex-col bg-ink-950 bg-grid">
+        <header className="safe-top sticky top-0 z-40 border-b border-ink-700/70 bg-ink-950/85 backdrop-blur-md">
+          <div className="flex h-16 items-center gap-3 px-4 lg:px-6">
+            {mod ? (
+              <button
+                type="button"
+                onClick={back}
+                aria-label="Torna ai moduli"
+                className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-ink-700 bg-ink-850 text-ink-300 hover:text-ink-100"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            ) : (
+              <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-850 ring-1 ring-ink-700">
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-stop shadow-[0_0_10px_var(--color-stop)]" />
+              </span>
+            )}
+
+            <div className="min-w-0 flex-1">
+              {mod ? (
+                <>
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-signal">
+                    {mod.needy ? 'Modulo bisognoso' : 'Modulo'}
+                  </p>
+                  <h1 className="truncate font-display text-lg font-bold leading-tight">{mod.name}</h1>
+                </>
+              ) : (
+                <>
+                  <p className="font-display text-lg font-bold leading-none tracking-tight">
+                    DEFUSER<span className="text-signal">.</span>
+                  </p>
+                  <p className="mt-1 hidden truncate font-mono text-[10px] uppercase tracking-[0.18em] text-ink-500 sm:block">
+                    Manuale dell'esperto · Keep Talking and Nobody Explodes
+                  </p>
+                </>
+              )}
+            </div>
+
             <BombStatusBar />
           </div>
         </header>
 
-        <main className="flex-1 flex overflow-hidden flex-col md:flex-row relative">
-          
-          <section className="flex-1 flex flex-col p-6 lg:p-10 bg-[radial-gradient(circle_at_center,_#111111_0%,_#050505_100%)] overflow-y-auto">
-            {activeModule ? (
-              <div className="animate-in fade-in flex-1 flex flex-col max-w-4xl mx-auto w-full">
-                <div className="flex items-center gap-2 mb-6">
-                   <span className="h-[1px] w-8 bg-amber-500"></span>
-                   <span className="text-xs uppercase font-bold tracking-widest text-amber-500">{MODULE_NAMES[activeModule]}</span>
-                   <button 
-                     onClick={() => setActiveModule(null)}
-                     className="ml-auto text-xs text-zinc-400 border border-zinc-700 hover:bg-zinc-800 hover:text-white transition-colors px-3 py-1 rounded font-mono uppercase"
-                   >
-                     Torna ai Moduli
-                   </button>
-                 </div>
-                
-                <div className="flex-1">
-                  {renderModule()}
+        <div className="flex flex-1">
+          <main className="min-w-0 flex-1 px-4 pb-16 pt-5 sm:px-6 lg:px-10 lg:pt-8">
+            <div className="mx-auto w-full max-w-3xl">
+              {mod ? (
+                <div key={mod.id} className="animate-rise">
+                  <mod.Component />
                 </div>
-              </div>
-            ) : (
-              <ModuleHub setActiveModule={setActiveModule} />
-            )}
-          </section>
-
+              ) : (
+                <ModuleHub onOpen={open} />
+              )}
+            </div>
+          </main>
           <BombConfig />
-          
-        </main>
-
-        <footer className="h-8 bg-zinc-950 hidden sm:flex items-center px-6 border-t border-[#27272a] shrink-0">
-          <div className="flex justify-between w-full font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-            <span>Data Feed: Stable</span>
-            <span>Secure Protocol: Enabled</span>
-            <span>Terminal: 0x8F22</span>
-          </div>
-        </footer>
-
+        </div>
       </div>
     </BombProvider>
   );

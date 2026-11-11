@@ -1,124 +1,160 @@
 import React, { useState } from 'react';
 import { useBombContext } from '../context/BombContext';
+import { BigText, Choice, Hint, Panel, QuickFacts, Result, ResetButton, cx } from '../components/ui';
 
-const COLORS = [
-  { id: 'red', label: 'Rosso', bg: 'bg-red-500 text-white' },
-  { id: 'white', label: 'Bianco', bg: 'bg-white text-gray-900 border-gray-300' },
-  { id: 'blue', label: 'Blu', bg: 'bg-blue-500 text-white' },
-  { id: 'yellow', label: 'Giallo', bg: 'bg-yellow-400 text-gray-900' },
-  { id: 'black', label: 'Nero', bg: 'bg-gray-800 text-white border-gray-600' },
+type Color = 'red' | 'white' | 'blue' | 'yellow' | 'black';
+
+const COLORS: { id: Color; label: string; swatch: string }[] = [
+  { id: 'red', label: 'Rosso', swatch: 'bg-red-500' },
+  { id: 'white', label: 'Bianco', swatch: 'bg-white' },
+  { id: 'blue', label: 'Blu', swatch: 'bg-blue-500' },
+  { id: 'yellow', label: 'Giallo', swatch: 'bg-yellow-400' },
+  { id: 'black', label: 'Nero', swatch: 'bg-zinc-950 ring-1 ring-inset ring-zinc-500' },
 ];
+
+const ORD = ['primo', 'secondo', 'terzo', 'quarto', 'quinto', 'sesto'];
+
+class NeedSerial extends Error {}
+
+/** Regole del manuale (Sezione "Cavi"). Restituisce l'indice 1-based del cavo da tagliare. */
+function solve(w: Color[], isEven: boolean | undefined): number {
+  const n = w.length;
+  const count = (c: Color) => w.filter((x) => x === c).length;
+  const last = w[n - 1];
+  const odd = () => {
+    if (isEven === undefined) throw new NeedSerial();
+    return !isEven;
+  };
+
+  if (n === 3) {
+    if (count('red') === 0) return 2;
+    if (last === 'white') return 3;
+    if (count('blue') > 1) return w.lastIndexOf('blue') + 1;
+    return 3;
+  }
+  if (n === 4) {
+    if (count('red') > 1 && odd()) return w.lastIndexOf('red') + 1;
+    if (last === 'yellow' && count('red') === 0) return 1;
+    if (count('blue') === 1) return 1;
+    if (count('yellow') > 1) return 4;
+    return 2;
+  }
+  if (n === 5) {
+    if (last === 'black' && odd()) return 4;
+    if (count('red') === 1 && count('yellow') > 1) return 1;
+    if (count('black') === 0) return 2;
+    return 1;
+  }
+  // 6 cavi
+  if (count('yellow') === 0 && odd()) return 3;
+  if (count('yellow') === 1 && count('white') > 1) return 4;
+  if (count('red') === 0) return 6;
+  return 4;
+}
 
 export const Wires: React.FC = () => {
   const { isEven } = useBombContext();
-  const [wireCount, setWireCount] = useState<number>(3);
-  const [wires, setWires] = useState<string[]>(Array(3).fill('red'));
+  const [wires, setWires] = useState<(Color | null)[]>([null, null, null]);
 
-  const handleWireChange = (index: number, colorId: string) => {
-    const newWires = [...wires];
-    newWires[index] = colorId;
-    setWires(newWires);
-  };
+  const setCount = (n: number) =>
+    setWires((prev) => (prev.length < n ? [...prev, ...Array(n - prev.length).fill(null)] : prev.slice(0, n)));
 
-  const handleCountChange = (count: number) => {
-    setWireCount(count);
+  const setWire = (i: number, c: Color) =>
     setWires((prev) => {
-      if (prev.length < count) {
-        return [...prev, ...Array(count - prev.length).fill('red')];
-      }
-      return prev.slice(0, count);
+      const next = [...prev];
+      next[i] = c;
+      return next;
     });
-  };
 
-  const calculateCut = (): number => {
-    const c = wires.length;
-    const count = (color: string) => wires.filter(w => w === color).length;
-    const lastColor = wires[c - 1];
-
-    if (c === 3) {
-      if (count('red') === 0) return 2;
-      if (lastColor === 'white') return c;
-      if (count('blue') > 1) return wires.lastIndexOf('blue') + 1;
-      return c;
+  const complete = wires.every(Boolean);
+  let cut: number | null = null;
+  let needSerial = false;
+  if (complete) {
+    try {
+      cut = solve(wires as Color[], isEven);
+    } catch (e) {
+      if (e instanceof NeedSerial) needSerial = true;
+      else throw e;
     }
-    if (c === 4) {
-      if (count('red') > 1 && isEven === false) return wires.lastIndexOf('red') + 1;
-      if (lastColor === 'yellow' && count('red') === 0) return 1;
-      if (count('blue') === 1) return 1;
-      if (count('yellow') > 1) return c;
-      return 2;
-    }
-    if (c === 5) {
-      if (lastColor === 'black' && isEven === false) return 4;
-      if (count('red') === 1 && count('yellow') > 1) return 1;
-      if (count('black') === 0) return 2;
-      return 1;
-    }
-    if (c === 6) {
-      if (count('yellow') === 0 && isEven === false) return 3;
-      if (count('yellow') === 1 && count('white') > 1) return 4;
-      if (count('red') === 0) return c;
-      return 4;
-    }
-    return -1;
-  };
-
-  const isDataMissing = (wireCount === 4 || wireCount === 5 || wireCount === 6) && isEven === undefined;
-
-  const resultIndex = calculateCut();
+  }
+  const cutColor = cut ? COLORS.find((c) => c.id === wires[cut! - 1]) : undefined;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-400 mb-2">Numero di Cavi</label>
-        <div className="flex gap-2">
-          {[3, 4, 5, 6].map(n => (
-            <button
-              key={n}
-              onClick={() => handleCountChange(n)}
-              className={`flex-1 py-3 font-mono font-bold rounded ${wireCount === n ? 'bg-amber-500 text-gray-900' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
-            >
+    <div className="space-y-4">
+      <Panel title="Quanti cavi ci sono?" step={1}>
+        <div className="grid grid-cols-4 gap-2">
+          {[3, 4, 5, 6].map((n) => (
+            <Choice key={n} active={wires.length === n} onClick={() => setCount(n)} className="font-mono text-lg">
               {n}
-            </button>
+            </Choice>
           ))}
         </div>
-      </div>
+      </Panel>
 
-      <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-400">Colori dei Cavi (dall'alto al basso)</label>
-        {wires.map((wireColor, idx) => (
-          <div key={idx} className="flex gap-2">
-            <span className="w-8 h-10 flex items-center justify-center bg-gray-800 rounded font-mono text-gray-400">{idx + 1}</span>
-            <div className="flex-1 flex gap-1">
-              {COLORS.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => handleWireChange(idx, c.id)}
-                  className={`flex-1 rounded border-2 transition-transform active:scale-95 ${c.bg} ${wireColor === c.id ? `border-amber-500 ring-2 ring-amber-500 ring-offset-2 ring-offset-gray-900` : 'border-transparent opacity-50 hover:opacity-100'}`}
-                >
-                  <span className="sr-only">{c.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <Panel
+        title="Colori dall'alto verso il basso"
+        step={2}
+        right={<ResetButton onClick={() => setWires(Array(wires.length).fill(null))} disabled={!wires.some(Boolean)} />}
+      >
+        <ol className="space-y-2">
+          {wires.map((w, i) => (
+            <li
+              key={i}
+              className={cx(
+                'flex items-center gap-2 rounded-xl p-1 transition-colors',
+                cut === i + 1 && 'bg-go/10 ring-1 ring-go/60',
+              )}
+            >
+              <span className="grid h-11 w-8 shrink-0 place-items-center font-mono text-sm font-bold text-ink-400">{i + 1}</span>
+              <div className="grid flex-1 grid-cols-5 gap-1.5">
+                {COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-label={`Cavo ${i + 1}: ${c.label}`}
+                    aria-pressed={w === c.id}
+                    onClick={() => setWire(i, c.id)}
+                    className={cx(
+                      'relative h-11 rounded-lg transition-[opacity,transform] active:scale-95',
+                      c.swatch,
+                      w === c.id ? 'ring-2 ring-signal ring-offset-2 ring-offset-ink-900' : w ? 'opacity-25' : 'opacity-80 hover:opacity-100',
+                    )}
+                  >
+                    <span className="sr-only">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-2 flex justify-between px-11 text-[10px] uppercase tracking-wider text-ink-500 sm:px-12">
+          {COLORS.map((c) => (
+            <span key={c.id}>{c.label}</span>
+          ))}
+        </div>
+      </Panel>
 
-      <div className="pt-6 border-t border-gray-800">
-        {isDataMissing ? (
-          <div className="bg-red-900/30 border border-red-500/50 p-4 rounded-lg">
-            <p className="text-red-400 font-bold mb-1">Dati Mancanti</p>
-            <p className="text-red-300/80 text-sm">Inserisci il Numero Seriale nelle impostazioni (bottone in basso a destra).</p>
-          </div>
-        ) : (
-          <div className="bg-green-900/20 border border-green-500/30 p-6 rounded-lg text-center">
-            <p className="text-green-500 uppercase tracking-widest text-sm font-bold mb-2">Azione Richiesta</p>
-            <p className="text-3xl lg:text-4xl font-black text-white">
-              Taglia il cavo <span className="text-amber-500">{resultIndex}</span>
-            </p>
-          </div>
-        )}
-      </div>
+      {!complete ? (
+        <Result tone="idle">
+          <p className="text-sm text-ink-400">Indica il colore di tutti i cavi ({wires.filter(Boolean).length}/{wires.length}).</p>
+        </Result>
+      ) : needSerial ? (
+        <>
+          <Result tone="warn" label="Serve l'ultima cifra del seriale">
+            <Hint className="text-ink-300">Con questa combinazione la regola dipende dal numero seriale.</Hint>
+          </Result>
+          <QuickFacts facts={['serial']} highlight={['serial']} />
+        </>
+      ) : (
+        <Result tone="go" label="Azione">
+          <BigText>
+            Taglia il <span className="text-signal">{ORD[cut! - 1]}</span> cavo
+          </BigText>
+          <p className="mt-1 text-sm text-ink-300">
+            n° {cut} dall'alto · {cutColor?.label.toLowerCase()}
+          </p>
+        </Result>
+      )}
     </div>
   );
 };
