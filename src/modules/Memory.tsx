@@ -1,173 +1,186 @@
 import React, { useState } from 'react';
+import { Delete } from 'lucide-react';
+import { BigText, GhostButton, Panel, Result, ResetButton, cx } from '../components/ui';
 
-interface StageData {
+interface Stage {
   display: number;
   position: number;
   label: number;
 }
+type Action = { type: 'POSITION' | 'LABEL'; value: number; why: string };
+
+/** Regole del manuale (Sezione "Memoria"). `s` = fasi già completate. */
+function getAction(stageNum: number, d: number, s: Stage[]): Action {
+  const pos = (v: number, why: string): Action => ({ type: 'POSITION', value: v, why });
+  const lab = (v: number, why: string): Action => ({ type: 'LABEL', value: v, why });
+  switch (stageNum) {
+    case 1:
+      return [pos(2, ''), pos(2, ''), pos(3, ''), pos(4, '')][d - 1];
+    case 2:
+      return [
+        lab(4, ''),
+        pos(s[0].position, 'stessa posizione della fase 1'),
+        pos(1, ''),
+        pos(s[0].position, 'stessa posizione della fase 1'),
+      ][d - 1];
+    case 3:
+      return [
+        lab(s[1].label, 'stessa etichetta della fase 2'),
+        lab(s[0].label, 'stessa etichetta della fase 1'),
+        pos(3, ''),
+        lab(4, ''),
+      ][d - 1];
+    case 4:
+      return [
+        pos(s[0].position, 'stessa posizione della fase 1'),
+        pos(1, ''),
+        pos(s[1].position, 'stessa posizione della fase 2'),
+        pos(s[1].position, 'stessa posizione della fase 2'),
+      ][d - 1];
+    default:
+      return [
+        lab(s[0].label, 'stessa etichetta della fase 1'),
+        lab(s[1].label, 'stessa etichetta della fase 2'),
+        lab(s[3].label, 'stessa etichetta della fase 4'),
+        lab(s[2].label, 'stessa etichetta della fase 3'),
+      ][d - 1];
+  }
+}
+
+const NumPad: React.FC<{ onPick: (n: number) => void; big?: boolean }> = ({ onPick, big }) => (
+  <div className="grid grid-cols-4 gap-2">
+    {[1, 2, 3, 4].map((n) => (
+      <button
+        key={n}
+        type="button"
+        onClick={() => onPick(n)}
+        className={cx(
+          'rounded-xl border border-ink-700 bg-ink-850 font-mono font-bold text-ink-100 transition-[border-color,transform] hover:border-signal active:scale-95',
+          big ? 'h-20 text-4xl' : 'h-14 text-2xl',
+        )}
+      >
+        {n}
+      </button>
+    ))}
+  </div>
+);
 
 export const Memory: React.FC = () => {
-  const [stages, setStages] = useState<StageData[]>([]);
-  const [currentDisplay, setCurrentDisplay] = useState<number | null>(null);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [display, setDisplay] = useState<number | null>(null);
 
-  const currentStageNum = stages.length + 1;
+  const stageNum = stages.length + 1;
+  const done = stageNum > 5;
+  const action = display !== null && !done ? getAction(stageNum, display, stages) : null;
 
-  const getAction = (display: number): { type: 'POSITION' | 'LABEL', value: number } => {
-    if (currentStageNum === 1) {
-      if (display === 1) return { type: 'POSITION', value: 2 };
-      if (display === 2) return { type: 'POSITION', value: 2 };
-      if (display === 3) return { type: 'POSITION', value: 3 };
-      if (display === 4) return { type: 'POSITION', value: 4 };
-    }
-    if (currentStageNum === 2) {
-      if (display === 1) return { type: 'LABEL', value: 4 };
-      if (display === 2) return { type: 'POSITION', value: stages[0].position };
-      if (display === 3) return { type: 'POSITION', value: 1 };
-      if (display === 4) return { type: 'POSITION', value: stages[0].position };
-    }
-    if (currentStageNum === 3) {
-      if (display === 1) return { type: 'LABEL', value: stages[1].label };
-      if (display === 2) return { type: 'LABEL', value: stages[0].label };
-      if (display === 3) return { type: 'POSITION', value: 3 };
-      if (display === 4) return { type: 'LABEL', value: 4 };
-    }
-    if (currentStageNum === 4) {
-      if (display === 1) return { type: 'POSITION', value: stages[0].position };
-      if (display === 2) return { type: 'POSITION', value: 1 };
-      if (display === 3) return { type: 'POSITION', value: stages[1].position };
-      if (display === 4) return { type: 'POSITION', value: stages[1].position };
-    }
-    if (currentStageNum === 5) {
-      if (display === 1) return { type: 'LABEL', value: stages[0].label };
-      if (display === 2) return { type: 'LABEL', value: stages[1].label };
-      if (display === 3) return { type: 'LABEL', value: stages[3].label };
-      if (display === 4) return { type: 'LABEL', value: stages[2].label };
-    }
-    return { type: 'POSITION', value: 1 };
+  const record = (label: number, position: number) => {
+    if (display === null) return;
+    setStages((s) => [...s, { display, position, label }]);
+    setDisplay(null);
   };
-
-  const currentAction = currentDisplay ? getAction(currentDisplay) : null;
-
-  const recordAction = (label: number, position: number) => {
-    if (!currentDisplay) return;
-    setStages([...stages, { display: currentDisplay, position, label }]);
-    setCurrentDisplay(null);
-  };
-
   const reset = () => {
     setStages([]);
-    setCurrentDisplay(null);
+    setDisplay(null);
+  };
+  const undo = () => {
+    if (display !== null) setDisplay(null);
+    else setStages((s) => s.slice(0, -1));
   };
 
-  if (currentStageNum > 5) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">✓</div>
-        <h3 className="text-2xl font-bold text-white mb-2">Modulo Disarmato!</h3>
-        <p className="text-gray-400 mb-8">Ottimo lavoro. Passa al prossimo modulo.</p>
-        <button onClick={reset} className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-full transition-colors">
-          Ricomincia (se hai sbagliato)
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
-      {/* Progress */}
-      <div className="flex justify-between items-center bg-gray-900 border border-gray-800 rounded p-4">
-        <span className="text-amber-500 font-bold uppercase tracking-wider text-sm">Stage {currentStageNum} di 5</span>
-        <button onClick={reset} className="text-gray-500 hover:text-white text-sm font-mono transition-colors">RESET</button>
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-1">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <span
+              key={i}
+              className={cx(
+                'h-2 flex-1 rounded-full',
+                i < stageNum ? 'bg-go' : i === stageNum ? 'bg-signal' : 'bg-ink-700',
+              )}
+            />
+          ))}
+        </div>
+        <GhostButton onClick={undo} disabled={!stages.length && display === null} aria-label="Annulla ultimo passo">
+          <Delete size={14} />
+        </GhostButton>
+        <ResetButton onClick={reset} disabled={!stages.length && display === null} />
       </div>
 
-      {!currentDisplay ? (
-        <div className="animate-in fade-in">
-          <label className="block text-center text-lg font-medium text-gray-300 mb-6">Cosa mostra il display grande?</label>
-          <div className="grid grid-cols-4 gap-4 max-w-sm mx-auto">
-            {[1, 2, 3, 4].map(n => (
-              <button
-                key={n}
-                onClick={() => setCurrentDisplay(n)}
-                className="aspect-square text-3xl font-black bg-gray-800 border border-gray-700 hover:border-amber-500 rounded-xl hover:bg-gray-700 transition-all text-white flex items-center justify-center shadow-lg active:scale-95"
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
+      {done ? (
+        <Result tone="go" label="Modulo disarmato">
+          <BigText>Ottimo lavoro ✓</BigText>
+          <button type="button" onClick={reset} className="mt-4 text-sm font-semibold text-signal underline-offset-2 hover:underline">
+            Nuovo modulo Memoria
+          </button>
+        </Result>
+      ) : display === null ? (
+        <Panel title={`Fase ${stageNum} di 5 · Che numero c'è sul display grande?`} step={stageNum}>
+          <NumPad onPick={setDisplay} big />
+        </Panel>
       ) : (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <div className="mx-auto max-w-md bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
-            
-            <div className="mb-8">
-              <p className="text-center text-gray-400 text-sm uppercase tracking-widest mb-2">Azione Richiesta</p>
-              <div className="text-center font-black text-xl sm:text-3xl">
-                Premi {currentAction?.type === 'POSITION' ? 'la Posizione' : 'l\'Etichetta'} <span className="text-amber-500 text-3xl sm:text-5xl ml-2">{currentAction?.value}</span>
-              </div>
-            </div>
-
-            <div className="bg-gray-900 -mx-6 -mb-6 p-6 border-t border-gray-700">
-              <p className="text-center text-gray-400 text-sm mb-4">Per proseguire, dimmi esattamente cosa hai premuto:</p>
-              
-              {currentAction?.type === 'POSITION' ? (
-                <div className="space-y-4">
-                  <p className="font-mono text-center text-amber-500">Hai premuto la posizione {currentAction.value}. Qual era il numero (etichetta)?</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1, 2, 3, 4].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => recordAction(n, currentAction.value)}
-                        className="py-3 bg-gray-800 rounded hover:bg-gray-700 border border-gray-700 hover:border-amber-500 font-bold text-xl transition-all"
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+        <>
+          <Result tone="go" label={`Fase ${stageNum} · display ${display}`}>
+            <p className="text-sm text-ink-300">
+              {action!.type === 'POSITION' ? 'Premi il pulsante in' : 'Premi il pulsante con scritto'}
+            </p>
+            <BigText className="mt-1">
+              {action!.type === 'POSITION' ? (
+                <>
+                  <span className="text-signal">{action!.value}ª</span> posizione
+                </>
               ) : (
-                <div className="space-y-4">
-                  <p className="font-mono text-center text-amber-500">Hai premuto l'etichetta {currentAction?.value}. In che posizione era (1-4 da sx a dx)?</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1, 2, 3, 4].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => recordAction(currentAction!.value, n)}
-                        className="py-3 bg-gray-800 rounded hover:bg-gray-700 border border-gray-700 hover:border-amber-500 font-bold text-xl transition-all"
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <>
+                  il numero <span className="text-signal">“{action!.value}”</span>
+                </>
               )}
-              
-              <button 
-                onClick={() => setCurrentDisplay(null)} 
-                className="w-full mt-6 text-gray-500 hover:text-white text-sm font-bold uppercase transition-colors"
-              >
-                Annulla e reinserisci display
-              </button>
-            </div>
-          </div>
-        </div>
+            </BigText>
+            {action!.why && <p className="mt-1 text-xs text-ink-400">({action!.why})</p>}
+            {action!.type === 'POSITION' && (
+              <div className="mx-auto mt-3 flex w-44 gap-1.5">
+                {[1, 2, 3, 4].map((p) => (
+                  <span key={p} className={cx('h-8 flex-1 rounded-md', p === action!.value ? 'bg-signal' : 'bg-ink-700')} />
+                ))}
+              </div>
+            )}
+          </Result>
+
+          {stageNum < 5 ? (
+            <Panel title={action!.type === 'POSITION' ? `Che numero c'era sul pulsante premuto?` : `In che posizione era (1–4 da sinistra)?`}>
+              <NumPad
+                onPick={(n) => (action!.type === 'POSITION' ? record(n, action!.value) : record(action!.value, n))}
+              />
+            </Panel>
+          ) : (
+            <button
+              type="button"
+              onClick={() => record(0, 0)}
+              className="h-12 w-full rounded-xl bg-signal font-bold text-ink-950 active:scale-[0.98]"
+            >
+              Fatto ✓
+            </button>
+          )}
+        </>
       )}
 
-      {/* History Log */}
-      {stages.length > 0 && (
-        <div className="mt-8">
-          <h4 className="text-gray-500 font-mono text-sm uppercase mb-3">Cronologia Stages</h4>
-          <div className="space-y-2">
-            {stages.map((st, i) => (
-              <div key={i} className="flex justify-between items-center bg-gray-800/50 p-3 rounded text-sm font-mono border border-gray-800">
-                <span className="text-white font-bold">St. {i+1}</span>
-                <span className="text-gray-400">Display: <span className="text-white">{st.display}</span></span>
-                <span className="text-gray-400">Posizione: <span className="text-amber-500 font-bold">{st.position}</span></span>
-                <span className="text-gray-400">Etichetta: <span className="text-amber-500 font-bold">{st.label}</span></span>
-              </div>
+      {stages.length > 0 && !done && (
+        <Panel title="Cronologia">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-3 gap-y-1.5 font-mono text-sm">
+            <span className="text-[11px] uppercase text-ink-500">Fase</span>
+            <span className="text-[11px] uppercase text-ink-500">Display</span>
+            <span className="text-[11px] uppercase text-ink-500">Posizione</span>
+            <span className="text-[11px] uppercase text-ink-500">Etichetta</span>
+            {stages.map((s, i) => (
+              <React.Fragment key={i}>
+                <span className="text-ink-400">{i + 1}</span>
+                <span>{s.display}</span>
+                <span className="font-bold text-signal">{s.position}</span>
+                <span className="font-bold text-signal">{s.label}</span>
+              </React.Fragment>
             ))}
           </div>
-        </div>
+          <p className="mt-3 text-xs text-ink-500">Un errore riporta il modulo alla fase 1: in quel caso premi Reset.</p>
+        </Panel>
       )}
     </div>
   );

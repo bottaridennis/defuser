@@ -1,125 +1,103 @@
 import React, { useState } from 'react';
 import { useBombContext } from '../context/BombContext';
+import { BigText, Fact, Panel, QuickFacts, Result, ResetButton, cx } from '../components/ui';
 
-// R B S L
-// 0 0 0 0: T (Taglia)
-// 0 0 0 1: N (Non tagliare)
-// 0 0 1 0: T
-// 0 0 1 1: B (Batterie >= 2)
-// 0 1 0 0: S (Seriale pari)
-// 0 1 0 1: P (Porta parallela)
-// 0 1 1 0: N
-// 0 1 1 1: P
-// 1 0 0 0: S
-// 1 0 0 1: B
-// 1 0 1 0: T
-// 1 0 1 1: B
-// 1 1 0 0: S
-// 1 1 0 1: S
-// 1 1 1 0: P
-// 1 1 1 1: N
-
-const LOOKUP_TABLE: Record<string, string> = {
-  '0000': 'T', '0001': 'N', '0010': 'T', '0011': 'B',
-  '0100': 'S', '0101': 'P', '0110': 'N', '0111': 'P',
-  '1000': 'S', '1001': 'B', '1010': 'T', '1011': 'B',
-  '1100': 'S', '1101': 'S', '1110': 'P', '1111': 'N'
+// Diagramma di Venn del manuale. Chiave: Rosso, Blu, Stella, LED (1 = presente)
+//  C = taglia · D = non tagliare · S = taglia se ultima cifra seriale pari
+//  P = taglia se c'è una porta parallela · B = taglia se 2 o più batterie
+const VENN: Record<string, 'C' | 'D' | 'S' | 'P' | 'B'> = {
+  '0000': 'C', '0001': 'D', '0010': 'C', '0011': 'B',
+  '0100': 'S', '0101': 'P', '0110': 'D', '0111': 'P',
+  '1000': 'S', '1001': 'B', '1010': 'C', '1011': 'B',
+  '1100': 'S', '1101': 'S', '1110': 'P', '1111': 'D',
 };
+
+type Out = { cut: boolean; why: string } | { need: Fact; why: string };
+
+const Toggle: React.FC<{ on: boolean; set: (v: boolean) => void; onCls: string; children: React.ReactNode }> = ({ on, set, onCls, children }) => (
+  <button
+    type="button"
+    aria-pressed={on}
+    onClick={() => set(!on)}
+    className={cx(
+      'flex h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 text-sm font-bold transition-[background,border-color,transform] active:scale-[0.97]',
+      on ? onCls : 'border-ink-700 bg-ink-850 text-ink-400',
+    )}
+  >
+    {children}
+  </button>
+);
 
 export const CompWires: React.FC = () => {
   const { isEven, batteries, hasParallel } = useBombContext();
-  
-  const [hasRed, setHasRed] = useState(false);
-  const [hasBlue, setHasBlue] = useState(false);
-  const [hasStar, setHasStar] = useState(false);
-  const [hasLed, setHasLed] = useState(false);
+  const [red, setRed] = useState(false);
+  const [blue, setBlue] = useState(false);
+  const [star, setStar] = useState(false);
+  const [led, setLed] = useState(false);
 
-  const calculateAction = () => {
-    const key = `${hasRed ? 1 : 0}${hasBlue ? 1 : 0}${hasStar ? 1 : 0}${hasLed ? 1 : 0}`;
-    const code = LOOKUP_TABLE[key];
-
-    if (code === 'T') return { action: 'TAGLIA', complete: true, color: 'text-green-500' };
-    if (code === 'N') return { action: 'NON TAGLIARE', complete: true, color: 'text-red-500' };
-    
-    if (code === 'S') {
-      if (isEven === undefined) return { action: 'Servono dati...', complete: false, missing: 'Seriale', color: 'text-amber-500' };
-      return { action: isEven ? 'TAGLIA' : 'NON TAGLIARE', complete: true, color: isEven ? 'text-green-500' : 'text-red-500' };
+  const letter = VENN[`${+red}${+blue}${+star}${+led}`];
+  const out: Out = (() => {
+    switch (letter) {
+      case 'C': return { cut: true, why: 'Taglia sempre' };
+      case 'D': return { cut: false, why: 'Non tagliare mai' };
+      case 'S':
+        return isEven === undefined
+          ? { need: 'serial', why: 'Dipende dall\'ultima cifra del seriale' }
+          : { cut: isEven, why: `Ultima cifra del seriale ${isEven ? 'pari' : 'dispari'}` };
+      case 'P':
+        return hasParallel === undefined
+          ? { need: 'parallel', why: 'Dipende dalla porta parallela' }
+          : { cut: hasParallel, why: hasParallel ? 'C\'è una porta parallela' : 'Nessuna porta parallela' };
+      case 'B':
+        return batteries === undefined
+          ? { need: 'batteries', why: 'Dipende dal numero di batterie' }
+          : { cut: batteries >= 2, why: `${batteries} batteri${batteries === 1 ? 'a' : 'e'} (servono almeno 2)` };
     }
-    
-    if (code === 'B') {
-      if (batteries === undefined) return { action: 'Servono dati...', complete: false, missing: 'Numero Batterie', color: 'text-amber-500' };
-      return { action: batteries >= 2 ? 'TAGLIA' : 'NON TAGLIARE', complete: true, color: batteries >= 2 ? 'text-green-500' : 'text-red-500' };
-    }
-    
-    if (code === 'P') {
-      // In the game, if you didn't check the config but we track it, if there's no parallel it's false.
-      // But if user hasn't set ports, how do we know it's missing vs just not there?
-      // For ports, if it's not marked we assume it's not there, but it's safer to prompt if they never set anything.
-      // But we don't track "isPortsConfigured". Let's assume hasParallel is the source of truth.
-      return { action: hasParallel ? 'TAGLIA' : 'NON TAGLIARE', complete: true, color: hasParallel ? 'text-green-500' : 'text-red-500' };
-    }
+  })();
 
-    return { action: 'ERRORE', complete: true, color: 'text-gray-500' };
-  };
-
-  const res = calculateAction();
-
-  const handleReset = () => {
-    setHasRed(false);
-    setHasBlue(false);
-    setHasStar(false);
-    setHasLed(false);
-  };
+  const reset = () => { setRed(false); setBlue(false); setStar(false); setLed(false); };
+  const facts: Fact[] = letter === 'S' ? ['serial'] : letter === 'P' ? ['parallel'] : letter === 'B' ? ['batteries'] : [];
 
   return (
-    <div className="max-w-xl mx-auto">
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-8">
-        <button
-          onClick={() => setHasRed(!hasRed)}
-          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all ${hasRed ? 'bg-red-500 border-red-400 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
-        >
-          ROSSO
-        </button>
-        <button
-          onClick={() => setHasBlue(!hasBlue)}
-          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all ${hasBlue ? 'bg-blue-500 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
-        >
-          BLU
-        </button>
-        <button
-          onClick={() => setHasStar(!hasStar)}
-          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 text-[10px] sm:text-base ${hasStar ? 'bg-gray-700 border-white text-white' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
-        >
-          <span className="text-xl">★</span> <span>STELLA</span>
-        </button>
-        <button
-          onClick={() => setHasLed(!hasLed)}
-          className={`p-3 sm:p-6 border-2 rounded-xl text-center font-bold tracking-wider transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 text-[10px] sm:text-base ${hasLed ? 'bg-amber-400 border-yellow-200 text-gray-900 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
-        >
-          <span className="text-xl">⚲</span> <span>LED</span>
-        </button>
-      </div>
-
-      <div className="bg-gray-800 rounded-2xl p-8 border border-gray-700 text-center relative overflow-hidden">
-        <p className="text-gray-400 font-mono text-sm uppercase mb-2">Risultato per questo cavo</p>
-        <div className={`text-4xl md:text-5xl font-black ${res.color}`}>
-          {res.action}
+    <div className="space-y-4">
+      <Panel title="Descrivi un cavo alla volta" right={<ResetButton onClick={reset} label="Cavo nuovo" disabled={!red && !blue && !star && !led} />}>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Toggle on={red} set={setRed} onCls="border-red-400 bg-red-500/90 text-white">
+            <span className="h-1.5 w-12 rounded-full bg-red-500 ring-1 ring-white/40" />
+            Ha del rosso
+          </Toggle>
+          <Toggle on={blue} set={setBlue} onCls="border-blue-400 bg-blue-500/90 text-white">
+            <span className="h-1.5 w-12 rounded-full bg-blue-500 ring-1 ring-white/40" />
+            Ha del blu
+          </Toggle>
+          <Toggle on={star} set={setStar} onCls="border-ink-100 bg-ink-100 text-ink-950">
+            <span className="text-xl leading-none">★</span>
+            Stella sotto
+          </Toggle>
+          <Toggle on={led} set={setLed} onCls="border-amber-300 bg-amber-400 text-ink-950">
+            <span className={cx('h-3 w-3 rounded-full', led ? 'bg-white shadow-[0_0_10px_white]' : 'bg-ink-600')} />
+            LED acceso
+          </Toggle>
         </div>
-        {!res.complete && (
-          <p className="mt-4 text-amber-500/80 text-sm">
-            Manca: <strong>{res.missing}</strong>. Clicca sull'icona impostazioni in basso a destra per inserire questo dato.
-          </p>
-        )}
-      </div>
+        <p className="mt-3 text-xs text-ink-500">Un cavo bianco senza strisce colorate: lascia rosso e blu spenti. Le strisce contano come colore.</p>
+      </Panel>
 
-      <div className="mt-8 flex justify-center">
-        <button
-          onClick={handleReset}
-          className="text-gray-400 hover:text-white font-mono text-sm uppercase underline decoration-gray-600 hover:decoration-white transition-all tracking-wider"
-        >
-          Resetta Cavo
-        </button>
-      </div>
+      {'need' in out ? (
+        <>
+          <Result tone="warn" label="Dato mancante">
+            <p className="text-ink-300">{out.why}.</p>
+          </Result>
+          <QuickFacts facts={facts} highlight={facts} />
+        </>
+      ) : (
+        <>
+          <Result tone={out.cut ? 'go' : 'stop'} label={`Lettera ${letter}`}>
+            <BigText>{out.cut ? 'Taglia' : 'Non tagliare'}</BigText>
+            <p className="mt-1 text-xs text-ink-400">{out.why}</p>
+          </Result>
+          {facts.length > 0 && <QuickFacts facts={facts} />}
+        </>
+      )}
     </div>
   );
 };
